@@ -3,5 +3,8 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "bash start.sh"
+releaseCommand = "python manage.py migrate --noinput"
+healthcheckPath = "/health/"
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
