@@ -1,0 +1,12 @@
+# Monorepo: el servicio Railway apunta a la raíz del repo; el backend vive en backend/
+[phases.setup]
+nixPkgs = ["python311", "gcc", "postgresql"]
+
+[phases.install]
+cmds = ["pip install -r backend/requirements.txt"]
+
+[phases.build]
+cmds = ["cd backend && python manage.py check"]
+
+[start]
+cmd = "cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"
