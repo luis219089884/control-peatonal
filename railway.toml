@@ -3,7 +3,6 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
-releaseCommand = "cd backend && python manage.py migrate --noinput"
+startCommand = "cd backend && bash start.sh"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

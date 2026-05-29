@@ -9,4 +9,4 @@ cmds = ["pip install -r backend/requirements.txt"]
 cmds = ["cd backend && python manage.py check"]
 
 [start]
-cmd = "cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"
+cmd = "cd backend && bash start.sh"
