@@ -17,6 +17,8 @@ for var in "${REQUIRED[@]}"; do
 done
 
 echo "Variables obligatorias: OK"
+echo "PORT (Railway): ${PORT:-NO DEFINIDO — usara 8000 por defecto}"
+echo ">>> En Ajustes → Red, el puerto del dominio DEBE ser el mismo que PORT <<<"
 echo "Probando carga de Django..."
 python -c "
 import os, django
