@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useMutation, useQuery } from '@apollo/client'
 import { VALIDAR_QR_MUTATION } from '../graphql/mutations'
 import { MI_PANEL_GUARDIA_QUERY } from '../graphql/queries'
@@ -6,6 +6,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import Seguridad2FA from '../components/Seguridad2FA'
+import QrScanner from '../components/QrScanner'
 import type { ValidarQRResponse } from '../types'
 
 const TIPOS = [
@@ -20,7 +21,6 @@ const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sába
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 export default function PanelGuardia() {
-  const [tokenHash, setTokenHash]   = useState('')
   const [tipoPersona, setTipoPersona] = useState('estudiante')
   const [resultado, setResultado]   = useState<(ValidarQRResponse & { tipoPersona?: string }) | null>(null)
   const [escaneando, setEscaneando] = useState(false)
@@ -43,7 +43,7 @@ export default function PanelGuardia() {
     return () => clearTimeout(t)
   }, [resultado])
 
-  const handleValidar = async () => {
+  const handleValidarToken = useCallback(async (tokenHash: string) => {
     if (!tokenHash.trim() || !panel) return
     const idIngreso = panel.ingresoId ?? 1
     try {
@@ -51,13 +51,13 @@ export default function PanelGuardia() {
         variables: { tokenHash: tokenHash.trim(), idIngreso, tipoPersonaSeleccionado: tipoPersona },
       })
       setResultado(data?.validarQr)
-      setTokenHash('')
       setEscaneando(false)
       refetch()
     } catch (e: unknown) {
       setResultado({ resultado: 'ERROR', mensaje: (e as Error).message })
+      setEscaneando(false)
     }
-  }
+  }, [panel, tipoPersona, validarQR, refetch])
 
   const permitidos = registros.filter((r: { accesoPermitido: boolean }) => r.accesoPermitido).length
   const rechazados = registros.length - permitidos
@@ -129,6 +129,12 @@ export default function PanelGuardia() {
           </div>
         )}
 
+        {loading && (
+          <div className="flex justify-center py-2">
+            <LoadingSpinner text="Validando QR..." />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Panel escaneo */}
           <div className="bg-white rounded-xl shadow-card p-5 space-y-4">
@@ -140,8 +146,10 @@ export default function PanelGuardia() {
               <div className="flex flex-wrap gap-2">
                 {TIPOS.map(t => (
                   <button key={t.value} onClick={() => setTipoPersona(t.value)}
+                    disabled={escaneando || loading}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200
-                      ${tipoPersona === t.value ? 'bg-[#1a3a6b] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      ${tipoPersona === t.value ? 'bg-[#1a3a6b] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
+                      disabled:opacity-50 disabled:cursor-not-allowed`}>
                     {t.label}
                   </button>
                 ))}
@@ -149,24 +157,28 @@ export default function PanelGuardia() {
             </div>
 
             {!escaneando ? (
-              <button onClick={() => setEscaneando(true)}
+              <button
+                type="button"
+                onClick={() => setEscaneando(true)}
+                disabled={loading}
                 className="w-full py-6 rounded-xl border-2 border-dashed border-[#1a3a6b]
                   text-[#1a3a6b] font-semibold text-lg hover:bg-[#f0f7ff] transition-all duration-200
-                  flex flex-col items-center gap-2">
+                  flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                 <span className="text-4xl">📷</span>
                 <span>ESCANEAR QR</span>
-                <span className="text-xs font-normal text-gray-400">Clic para ingresar el token</span>
+                <span className="text-xs font-normal text-gray-400">Usa la cámara de este dispositivo</span>
               </button>
             ) : (
               <div className="space-y-3">
-                <textarea autoFocus value={tokenHash} onChange={e => setTokenHash(e.target.value)}
-                  placeholder="Pega aquí el token del QR..." rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono
-                    focus:ring-2 focus:ring-[#1a3a6b] focus:border-[#1a3a6b] focus:outline-none transition-all" />
-                <div className="flex gap-2">
-                  <Button onClick={handleValidar} loading={loading} className="flex-1">✅ Validar</Button>
-                  <Button variant="secondary" onClick={() => { setEscaneando(false); setTokenHash('') }}>Cancelar</Button>
-                </div>
+                <QrScanner active={escaneando && !loading} onScan={handleValidarToken} />
+                <Button
+                  variant="secondary"
+                  onClick={() => setEscaneando(false)}
+                  disabled={loading}
+                  className="w-full"
+                >
+                  Cancelar
+                </Button>
               </div>
             )}
           </div>
