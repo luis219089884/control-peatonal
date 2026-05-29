@@ -98,6 +98,7 @@ class InvitadoRegistradoType:
 class GuardiaPanelType:
     nombre_completo: str
     turno: str
+    horario: str
     ingreso_nombre: str
     facultad_nombre: str
     sede_nombre: str
@@ -114,3 +115,5 @@ class IngresoConGuardiaType:
     sede_nombre: str
     guardia_nombre: Optional[str]
     turno: Optional[str]
+    activo: bool = True
+    id_facultad: int = 0

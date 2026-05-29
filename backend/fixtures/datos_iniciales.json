@@ -78,6 +78,7 @@
 
   {"model": "usuarios.empresaexterna", "pk": 1, "fields": {
     "nombre": "Seguridad UAGRM",
+    "tipo": "seguridad",
     "nit": "123456789",
     "contacto_nombre": "Coordinación Seguridad",
     "contacto_telefono": null,
@@ -170,7 +171,7 @@
     "usuario": 3,
     "empresa": 1,
     "cargo": "Guardia de seguridad",
-    "horario": "08:00-16:00",
+    "horario": "07:00-22:00",
     "fecha_inicio": "2024-01-01",
     "fecha_fin": null
   }},
@@ -178,7 +179,7 @@
   {"model": "accesos.guardia", "pk": 1, "fields": {
     "usuario": 3,
     "ingreso": 1,
-    "turno": "manana",
+    "turno": "jornada",
     "fecha_asignacion": "2024-01-01"
   }}
 ]

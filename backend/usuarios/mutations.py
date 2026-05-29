@@ -6,11 +6,14 @@ import strawberry
 
 from usuarios.models import (
     Administrativo,
+    Carrera,
     Docente,
     Estudiante,
     EmpresaExterna,
+    Facultad,
     PersonalExterno,
     Rol,
+    Sede,
     Usuario,
 )
 from usuarios.types import (
@@ -277,8 +280,6 @@ class UsuarioMutation:
                     message="Los guardias deben ser de tipo Personal Externo.",
                 )
             if nombre_rol == "guardia":
-                if not turno:
-                    return CrearUsuarioResponseType(ok=False, message="El turno es obligatorio para guardias.")
                 if not id_ingreso:
                     return CrearUsuarioResponseType(ok=False, message="La puerta de ingreso es obligatoria para guardias.")
 
@@ -313,15 +314,25 @@ class UsuarioMutation:
                     if not emp.activo:
                         usuario.delete()
                         return CrearUsuarioResponseType(ok=False, message=f"La empresa '{emp.nombre}' está desactivada.")
-                    PersonalExterno.objects.create(usuario=usuario, empresa=emp, cargo=cargo or "Guardia de seguridad")
+                    from accesos.models import Guardia, Ingreso
+                    horario_guardia = "07:00-22:00"
+                    PersonalExterno.objects.create(
+                        usuario=usuario,
+                        empresa=emp,
+                        cargo=cargo or ("Guardia de seguridad" if nombre_rol == "guardia" else ""),
+                        horario=horario_guardia if nombre_rol == "guardia" else None,
+                    )
                     if nombre_rol == "guardia":
-                        from accesos.models import Guardia, Ingreso
                         try:
                             ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
                         except Ingreso.DoesNotExist:
                             usuario.delete()
                             return CrearUsuarioResponseType(ok=False, message="Puerta de ingreso no encontrada.")
-                        Guardia.objects.create(usuario=usuario, ingreso=ingreso, turno=turno)
+                        Guardia.objects.create(
+                            usuario=usuario,
+                            ingreso=ingreso,
+                            turno=Guardia.TURNO_DEFAULT,
+                        )
                 except EmpresaExterna.DoesNotExist:
                     usuario.delete()
                     return CrearUsuarioResponseType(ok=False, message=f"Empresa '{empresa}' no encontrada.")
@@ -379,8 +390,6 @@ class UsuarioMutation:
                     ok=False, message="Los guardias deben ser de tipo Personal Externo.",
                 )
             if nombre_rol == "guardia":
-                if not turno:
-                    return CrearUsuarioResponseType(ok=False, message="El turno es obligatorio para guardias.")
                 if not id_ingreso:
                     return CrearUsuarioResponseType(ok=False, message="La puerta de ingreso es obligatoria para guardias.")
 
@@ -445,6 +454,8 @@ class UsuarioMutation:
                 )
                 pe.empresa = emp
                 pe.cargo = cargo or ("Guardia de seguridad" if nombre_rol == "guardia" else "")
+                if nombre_rol == "guardia":
+                    pe.horario = "07:00-22:00"
                 pe.save()
 
                 if nombre_rol == "guardia":
@@ -454,10 +465,10 @@ class UsuarioMutation:
                         return CrearUsuarioResponseType(ok=False, message="Puerta de ingreso no encontrada.")
                     g, _ = Guardia.objects.get_or_create(
                         usuario=usuario,
-                        defaults={"ingreso": ingreso, "turno": turno},
+                        defaults={"ingreso": ingreso, "turno": Guardia.TURNO_DEFAULT},
                     )
                     g.ingreso = ingreso
-                    g.turno = turno
+                    g.turno = Guardia.TURNO_DEFAULT
                     g.save()
                 else:
                     Guardia.objects.filter(usuario=usuario).delete()
@@ -548,7 +559,7 @@ class UsuarioMutation:
 
     @strawberry.mutation
     def crear_empresa(
-        self, info, nombre: str, nit: Optional[str] = None,
+        self, info, nombre: str, tipo: str = "externa", nit: Optional[str] = None,
         contacto_nombre: Optional[str] = None, contacto_telefono: Optional[str] = None,
         contacto_email: Optional[str] = None, contrato_desde: Optional[str] = None,
         contrato_hasta: Optional[str] = None,
@@ -559,6 +570,8 @@ class UsuarioMutation:
                 return ResponseType(success=False, message="No tienes permiso para esta acción.")
             if not nombre or not nombre.strip():
                 return ResponseType(success=False, message="El nombre de la empresa es requerido.")
+            if tipo not in ("externa", "seguridad"):
+                return ResponseType(success=False, message="El tipo debe ser 'externa' o 'seguridad'.")
             if EmpresaExterna.objects.filter(nombre__iexact=nombre.strip()).exists():
                 return ResponseType(success=False, message=f"Ya existe una empresa con el nombre '{nombre}'.")
 
@@ -567,9 +580,218 @@ class UsuarioMutation:
             hasta = date.fromisoformat(contrato_hasta) if contrato_hasta else None
 
             EmpresaExterna.objects.create(
-                nombre=nombre.strip(), nit=nit, contacto_nombre=contacto_nombre,
+                nombre=nombre.strip(), tipo=tipo, nit=nit, contacto_nombre=contacto_nombre,
                 contrato_vigente=True, contrato_desde=desde, contrato_hasta=hasta,
             )
             return ResponseType(success=True, message=f"Empresa '{nombre}' creada correctamente.")
         except Exception as e:
             return ResponseType(success=False, message=f"Error al crear empresa: {str(e)}")
+
+    @strawberry.mutation
+    def editar_empresa(
+        self, info, id_empresa: int, nombre: str, tipo: str,
+        nit: Optional[str] = None, contacto_nombre: Optional[str] = None,
+        contrato_vigente: bool = True,
+        contrato_desde: Optional[str] = None, contrato_hasta: Optional[str] = None,
+    ) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            if not nombre or not nombre.strip():
+                return ResponseType(success=False, message="El nombre de la empresa es requerido.")
+            if tipo not in ("externa", "seguridad"):
+                return ResponseType(success=False, message="El tipo debe ser 'externa' o 'seguridad'.")
+
+            try:
+                empresa = EmpresaExterna.objects.get(id_empresa=id_empresa)
+            except EmpresaExterna.DoesNotExist:
+                return ResponseType(success=False, message="Empresa no encontrada.")
+
+            duplicado = EmpresaExterna.objects.filter(
+                nombre__iexact=nombre.strip()
+            ).exclude(id_empresa=id_empresa).first()
+            if duplicado:
+                return ResponseType(success=False, message=f"Ya existe otra empresa con el nombre '{nombre}'.")
+
+            from datetime import date
+            empresa.nombre = nombre.strip()
+            empresa.tipo = tipo
+            empresa.nit = nit or None
+            empresa.contacto_nombre = contacto_nombre or None
+            empresa.contrato_vigente = contrato_vigente
+            empresa.contrato_desde = date.fromisoformat(contrato_desde) if contrato_desde else None
+            empresa.contrato_hasta = date.fromisoformat(contrato_hasta) if contrato_hasta else None
+            empresa.save()
+            return ResponseType(success=True, message=f"Empresa '{empresa.nombre}' actualizada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error al editar empresa: {str(e)}")
+
+    @strawberry.mutation
+    def activar_empresa(self, info, id_empresa: int) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            try:
+                empresa = EmpresaExterna.objects.get(id_empresa=id_empresa)
+            except EmpresaExterna.DoesNotExist:
+                return ResponseType(success=False, message="Empresa no encontrada.")
+            empresa.activo = True
+            empresa.save()
+            return ResponseType(success=True, message=f"Empresa '{empresa.nombre}' reactivada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    # ─── Facultades ───────────────────────────────────────────────────────────
+
+    @strawberry.mutation
+    def crear_facultad(
+        self, info, id_sede: int, nombre: str, descripcion: Optional[str] = None
+    ) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            if not nombre.strip():
+                return ResponseType(success=False, message="El nombre de la facultad es requerido.")
+            try:
+                sede = Sede.objects.get(id_sede=id_sede)
+            except Sede.DoesNotExist:
+                return ResponseType(success=False, message="Sede no encontrada.")
+            if Facultad.objects.filter(nombre__iexact=nombre.strip(), sede=sede).exists():
+                return ResponseType(success=False, message=f"Ya existe una facultad con ese nombre en la sede '{sede.nombre}'.")
+            Facultad.objects.create(sede=sede, nombre=nombre.strip(), descripcion=descripcion or None)
+            return ResponseType(success=True, message=f"Facultad '{nombre}' creada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def editar_facultad(
+        self, info, id_facultad: int, nombre: str,
+        id_sede: Optional[int] = None, descripcion: Optional[str] = None
+    ) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            try:
+                facultad = Facultad.objects.select_related("sede").get(id_facultad=id_facultad)
+            except Facultad.DoesNotExist:
+                return ResponseType(success=False, message="Facultad no encontrada.")
+            if not nombre.strip():
+                return ResponseType(success=False, message="El nombre es requerido.")
+            sede = facultad.sede
+            if id_sede and id_sede != facultad.sede.id_sede:
+                try:
+                    sede = Sede.objects.get(id_sede=id_sede)
+                except Sede.DoesNotExist:
+                    return ResponseType(success=False, message="Sede no encontrada.")
+            dup = Facultad.objects.filter(nombre__iexact=nombre.strip(), sede=sede).exclude(id_facultad=id_facultad).first()
+            if dup:
+                return ResponseType(success=False, message=f"Ya existe otra facultad con ese nombre en '{sede.nombre}'.")
+            facultad.nombre = nombre.strip()
+            facultad.sede = sede
+            facultad.descripcion = descripcion or None
+            facultad.save()
+            return ResponseType(success=True, message=f"Facultad '{facultad.nombre}' actualizada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def desactivar_facultad(self, info, id_facultad: int) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            try:
+                facultad = Facultad.objects.get(id_facultad=id_facultad)
+            except Facultad.DoesNotExist:
+                return ResponseType(success=False, message="Facultad no encontrada.")
+            facultad.activo = False
+            facultad.save()
+            Carrera.objects.filter(facultad=facultad).update(activo=False)
+            return ResponseType(success=True, message=f"Facultad '{facultad.nombre}' desactivada.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def activar_facultad(self, info, id_facultad: int) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            try:
+                facultad = Facultad.objects.get(id_facultad=id_facultad)
+            except Facultad.DoesNotExist:
+                return ResponseType(success=False, message="Facultad no encontrada.")
+            facultad.activo = True
+            facultad.save()
+            return ResponseType(success=True, message=f"Facultad '{facultad.nombre}' reactivada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    # ─── Ingresos / Puertas ───────────────────────────────────────────────────
+
+    @strawberry.mutation
+    def editar_ingreso(
+        self, info, id_ingreso: int, nombre: str, id_facultad: int,
+        descripcion: Optional[str] = None, ubicacion: Optional[str] = None,
+    ) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            from accesos.models import Ingreso
+            try:
+                ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
+            except Ingreso.DoesNotExist:
+                return ResponseType(success=False, message="Puerta de ingreso no encontrada.")
+            if not nombre.strip():
+                return ResponseType(success=False, message="El nombre es requerido.")
+            try:
+                facultad = Facultad.objects.get(id_facultad=id_facultad)
+            except Facultad.DoesNotExist:
+                return ResponseType(success=False, message="Facultad no encontrada.")
+            ingreso.nombre = nombre.strip()
+            ingreso.facultad = facultad
+            ingreso.descripcion = descripcion or None
+            ingreso.ubicacion = ubicacion or None
+            ingreso.save()
+            return ResponseType(success=True, message=f"Puerta '{ingreso.nombre}' actualizada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def desactivar_ingreso(self, info, id_ingreso: int) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            from accesos.models import Ingreso
+            try:
+                ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
+            except Ingreso.DoesNotExist:
+                return ResponseType(success=False, message="Puerta no encontrada.")
+            ingreso.activo = False
+            ingreso.save()
+            return ResponseType(success=True, message=f"Puerta '{ingreso.nombre}' desactivada.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def activar_ingreso(self, info, id_ingreso: int) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            from accesos.models import Ingreso
+            try:
+                ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
+            except Ingreso.DoesNotExist:
+                return ResponseType(success=False, message="Puerta no encontrada.")
+            ingreso.activo = True
+            ingreso.save()
+            return ResponseType(success=True, message=f"Puerta '{ingreso.nombre}' reactivada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")

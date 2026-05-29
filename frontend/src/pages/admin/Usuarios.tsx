@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useParams, Navigate } from 'react-router-dom'
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client'
-import { LISTAR_USUARIOS_QUERY, LISTAR_INGRESOS_QUERY, DETALLE_USUARIO_QUERY } from '../../graphql/queries'
+import {
+  LISTAR_USUARIOS_QUERY, LISTAR_INGRESOS_QUERY,
+  DETALLE_USUARIO_QUERY, LISTAR_EMPRESAS_SELECTOR_QUERY,
+} from '../../graphql/queries'
 import {
   CREAR_USUARIO_MUTATION,
   ACTUALIZAR_USUARIO_MUTATION,
@@ -10,6 +13,7 @@ import {
 } from '../../graphql/mutations'
 import Button from '../../components/ui/Button'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import PasswordInput from '../../components/ui/PasswordInput'
 
 export type TipoSeccion = 'estudiante' | 'docente' | 'administrativo' | 'personal_externo'
 
@@ -38,7 +42,7 @@ interface FormExt {
   nro_registro?: string; modalidad_ingreso?: string; periodo_ingreso?: string;
   codigo_docente?: string; especialidad?: string; categoria?: string;
   codigo_admin?: string; cargo?: string; area?: string;
-  empresa?: string; id_ingreso?: string; turno?: string;
+  empresa?: string; id_ingreso?: string;
 }
 
 interface UsuarioRow {
@@ -77,6 +81,16 @@ function ModalUsuarioForm({
   const ingresos: { idIngreso: number; nombre: string; facultadNombre: string; sedeNombre: string }[] =
     ingData?.listarIngresos ?? []
 
+  // Filtra empresas según el rol del personal externo
+  const tipoEmpresa = base.rol === 'guardia' ? 'seguridad' : 'externa'
+  const { data: empData } = useQuery(LISTAR_EMPRESAS_SELECTOR_QUERY, {
+    skip: tipo !== 'personal_externo',
+    variables: { tipo: tipoEmpresa },
+    fetchPolicy: 'network-only',
+  })
+  const empresasDisponibles: { id_empresa: number; nombre: string; contrato_vigente: boolean }[] =
+    empData?.listarEmpresasSelector ? JSON.parse(empData.listarEmpresasSelector) : []
+
   useEffect(() => {
     if (mode !== 'edit' || !idUsuario) return
     setCargandoDetalle(true)
@@ -104,7 +118,6 @@ function ModalUsuarioForm({
         area: d.area || '',
         empresa: d.empresa || '',
         id_ingreso: d.id_ingreso ? String(d.id_ingreso) : '',
-        turno: d.turno === 'manana' ? 'mañana' : (d.turno || ''),
       })
       setCargandoDetalle(false)
     }).catch(() => {
@@ -113,7 +126,13 @@ function ModalUsuarioForm({
     })
   }, [mode, idUsuario, fetchDetalle])
 
-  const setB = (k: keyof FormBase, v: string) => setBase(p => ({ ...p, [k]: v }))
+  const setB = (k: keyof FormBase, v: string) => {
+    setBase(p => ({ ...p, [k]: v }))
+    // Al cambiar el rol en personal externo, limpiar empresa seleccionada
+    if (k === 'rol') {
+      setExt(p => ({ ...p, empresa: '' }))
+    }
+  }
   const setE = (k: keyof FormExt, v: string) => setExt(p => ({ ...p, [k]: v }))
 
   const paso1Valido = base.nombres && base.apellidos && base.ci &&
@@ -136,7 +155,6 @@ function ModalUsuarioForm({
     cargo:            ext.cargo || null,
     area:             ext.area || null,
     empresa:          ext.empresa || null,
-    turno:            ext.turno || null,
     idIngreso:        ext.id_ingreso ? +ext.id_ingreso : null,
   }
 
@@ -230,11 +248,9 @@ function ModalUsuarioForm({
                       <label className="label-field">
                         {mode === 'create' ? 'Contraseña *' : 'Nueva contraseña'}
                       </label>
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={base.password}
-                        onChange={e => setB('password', e.target.value)}
-                        className="input-field"
+                        onChange={v => setB('password', v)}
                         placeholder={mode === 'edit' ? 'Dejar vacío para no cambiar' : ''}
                       />
                     </div>
@@ -311,8 +327,28 @@ function ModalUsuarioForm({
                   {tipo === 'personal_externo' && (
                     <>
                       <div>
-                        <label className="label-field">Empresa *</label>
-                        <input value={ext.empresa || ''} onChange={e => setE('empresa', e.target.value)} className="input-field" />
+                        <label className="label-field">
+                          {base.rol === 'guardia' ? 'Empresa de seguridad *' : 'Empresa *'}
+                        </label>
+                        {empresasDisponibles.length === 0 ? (
+                          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            No hay empresas de tipo <strong>{base.rol === 'guardia' ? 'seguridad' : 'externa'}</strong> registradas.
+                            Crea una primero en <em>Empresas Externas</em>.
+                          </div>
+                        ) : (
+                          <select
+                            value={ext.empresa || ''}
+                            onChange={e => setE('empresa', e.target.value)}
+                            className="input-field"
+                          >
+                            <option value="">Seleccionar empresa...</option>
+                            {empresasDisponibles.map(emp => (
+                              <option key={emp.id_empresa} value={emp.nombre}>
+                                {emp.nombre}{!emp.contrato_vigente ? ' ⚠ (contrato vencido)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                       <div>
                         <label className="label-field">Cargo</label>
@@ -331,15 +367,9 @@ function ModalUsuarioForm({
                               ))}
                             </select>
                           </div>
-                          <div>
-                            <label className="label-field">Turno *</label>
-                            <select value={ext.turno || ''} onChange={e => setE('turno', e.target.value)} className="input-field">
-                              <option value="">Seleccionar...</option>
-                              <option value="mañana">Mañana</option>
-                              <option value="tarde">Tarde</option>
-                              <option value="noche">Noche</option>
-                            </select>
-                          </div>
+                          <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                            El horario de trabajo es según el contrato de la empresa: <strong>07:00 a 22:00</strong>.
+                          </p>
                         </>
                       )}
                     </>

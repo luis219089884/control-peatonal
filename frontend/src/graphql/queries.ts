@@ -15,9 +15,17 @@ export const MI_PERFIL_EXTENDIDO_QUERY = gql`
   }
 `
 
+export const LISTAR_SEDES_QUERY = gql`
+  query ListarSedes {
+    listarSedes {
+      idSede nombre ciudad departamento esIntegral activo
+    }
+  }
+`
+
 export const LISTAR_FACULTADES_QUERY = gql`
-  query ListarFacultades {
-    listarFacultades {
+  query ListarFacultades($soloActivas: Boolean) {
+    listarFacultades(soloActivas: $soloActivas) {
       idFacultad nombre descripcion activo
       sede { idSede nombre ciudad departamento esIntegral activo }
     }
@@ -47,7 +55,7 @@ export const MIS_REGISTROS_QUERY = gql`
 export const MI_PANEL_GUARDIA_QUERY = gql`
   query MiPanelGuardia {
     miPanelGuardia {
-      nombreCompleto turno ingresoNombre facultadNombre sedeNombre
+      nombreCompleto turno horario ingresoNombre facultadNombre sedeNombre
       registrosHoy {
         idRegistro tipoPersona nombreCompleto accesoPermitido fechaHora
         ingreso { nombre }
@@ -99,11 +107,17 @@ export const LISTAR_EMPRESAS_QUERY = gql`
   }
 `
 
+export const LISTAR_EMPRESAS_SELECTOR_QUERY = gql`
+  query ListarEmpresasSelector($tipo: String) {
+    listarEmpresasSelector(tipo: $tipo)
+  }
+`
+
 export const LISTAR_INGRESOS_QUERY = gql`
-  query ListarIngresos {
-    listarIngresos {
+  query ListarIngresos($soloActivos: Boolean) {
+    listarIngresos(soloActivos: $soloActivos) {
       idIngreso nombre descripcion ubicacion facultadNombre sedeNombre
-      guardiaNombre turno
+      guardiaNombre turno activo idFacultad
     }
   }
 `

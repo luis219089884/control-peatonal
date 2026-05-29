@@ -10,9 +10,10 @@ from usuarios.models import (
     Estudiante,
     Facultad,
     PersonalExterno,
+    Sede,
     Usuario,
 )
-from usuarios.types import CarreraType, FacultadType, ResponseType, UsuarioType
+from usuarios.types import CarreraType, FacultadType, ResponseType, SedeType, UsuarioType
 from usuarios.utils import get_usuario_from_info
 
 
@@ -196,10 +197,18 @@ class UsuarioQuery:
         return [_model_to_usuario_type(u) for u in qs]
 
     @strawberry.field
-    def listar_facultades(self) -> List[FacultadType]:
-        return list(
-            Facultad.objects.select_related("sede").filter(activo=True)
-        )
+    def listar_sedes(self, info) -> List[SedeType]:
+        usuario = get_usuario_from_info(info)
+        if usuario.rol.nombre != "admin":
+            raise Exception("No tienes permiso para esta acción.")
+        return list(Sede.objects.filter(activo=True).order_by("nombre"))
+
+    @strawberry.field
+    def listar_facultades(self, solo_activas: bool = True) -> List[FacultadType]:
+        qs = Facultad.objects.select_related("sede")
+        if solo_activas:
+            qs = qs.filter(activo=True)
+        return list(qs.order_by("sede__nombre", "nombre"))
 
     @strawberry.field
     def listar_carreras(

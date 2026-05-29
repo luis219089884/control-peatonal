@@ -193,8 +193,14 @@ class Administrativo(models.Model):
 
 
 class EmpresaExterna(models.Model):
+    TIPO_CHOICES = (
+        ("externa", "Empresa externa / contratista"),
+        ("seguridad", "Empresa de seguridad"),
+    )
+
     id_empresa = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=200)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default="externa")
     nit = models.CharField(max_length=30, unique=True, null=True, blank=True)
     contacto_nombre = models.CharField(max_length=150, null=True, blank=True)
     contacto_telefono = models.CharField(max_length=20, null=True, blank=True)

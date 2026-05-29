@@ -93,6 +93,7 @@ class AdministrativoType:
 class EmpresaExternaType:
     id_empresa: int
     nombre: str
+    tipo: str
     nit: Optional[str]
     contacto_nombre: Optional[str]
     contrato_vigente: bool

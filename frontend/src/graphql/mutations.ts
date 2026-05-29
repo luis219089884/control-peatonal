@@ -128,13 +128,36 @@ export const DESACTIVAR_EMPRESA_MUTATION = gql`
   }
 `
 
+export const ACTIVAR_EMPRESA_MUTATION = gql`
+  mutation ActivarEmpresa($idEmpresa: Int!) {
+    activarEmpresa(idEmpresa: $idEmpresa) {
+      success
+      message
+    }
+  }
+`
+
+export const EDITAR_EMPRESA_MUTATION = gql`
+  mutation EditarEmpresa(
+    $idEmpresa: Int! $nombre: String! $tipo: String!
+    $nit: String $contactoNombre: String
+    $contratoVigente: Boolean $contratoDesde: String $contratoHasta: String
+  ) {
+    editarEmpresa(
+      idEmpresa: $idEmpresa nombre: $nombre tipo: $tipo
+      nit: $nit contactoNombre: $contactoNombre
+      contratoVigente: $contratoVigente contratoDesde: $contratoDesde contratoHasta: $contratoHasta
+    ) { success message }
+  }
+`
+
 export const CREAR_EMPRESA_MUTATION = gql`
   mutation CrearEmpresa(
-    $nombre: String! $nit: String $contactoNombre: String
+    $nombre: String! $tipo: String $nit: String $contactoNombre: String
     $contratoDesde: String $contratoHasta: String
   ) {
     crearEmpresa(
-      nombre: $nombre nit: $nit contactoNombre: $contactoNombre
+      nombre: $nombre tipo: $tipo nit: $nit contactoNombre: $contactoNombre
       contratoDesde: $contratoDesde contratoHasta: $contratoHasta
     ) { success message }
   }
@@ -145,6 +168,50 @@ export const CREAR_INGRESO_MUTATION = gql`
     crearIngreso(idFacultad: $idFacultad nombre: $nombre descripcion: $descripcion ubicacion: $ubicacion) {
       success message
     }
+  }
+`
+
+export const EDITAR_INGRESO_MUTATION = gql`
+  mutation EditarIngreso($idIngreso: Int! $nombre: String! $idFacultad: Int! $descripcion: String $ubicacion: String) {
+    editarIngreso(idIngreso: $idIngreso nombre: $nombre idFacultad: $idFacultad descripcion: $descripcion ubicacion: $ubicacion) {
+      success message
+    }
+  }
+`
+
+export const DESACTIVAR_INGRESO_MUTATION = gql`
+  mutation DesactivarIngreso($idIngreso: Int!) {
+    desactivarIngreso(idIngreso: $idIngreso) { success message }
+  }
+`
+
+export const ACTIVAR_INGRESO_MUTATION = gql`
+  mutation ActivarIngreso($idIngreso: Int!) {
+    activarIngreso(idIngreso: $idIngreso) { success message }
+  }
+`
+
+export const CREAR_FACULTAD_MUTATION = gql`
+  mutation CrearFacultad($idSede: Int! $nombre: String! $descripcion: String) {
+    crearFacultad(idSede: $idSede nombre: $nombre descripcion: $descripcion) { success message }
+  }
+`
+
+export const EDITAR_FACULTAD_MUTATION = gql`
+  mutation EditarFacultad($idFacultad: Int! $nombre: String! $idSede: Int $descripcion: String) {
+    editarFacultad(idFacultad: $idFacultad nombre: $nombre idSede: $idSede descripcion: $descripcion) { success message }
+  }
+`
+
+export const DESACTIVAR_FACULTAD_MUTATION = gql`
+  mutation DesactivarFacultad($idFacultad: Int!) {
+    desactivarFacultad(idFacultad: $idFacultad) { success message }
+  }
+`
+
+export const ACTIVAR_FACULTAD_MUTATION = gql`
+  mutation ActivarFacultad($idFacultad: Int!) {
+    activarFacultad(idFacultad: $idFacultad) { success message }
   }
 `
 

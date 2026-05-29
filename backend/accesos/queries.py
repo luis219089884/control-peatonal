@@ -47,6 +47,15 @@ class AccesoQuery:
         except Guardia.DoesNotExist:
             raise Exception("No se encontró guardia asociado a este usuario.")
 
+        from usuarios.models import PersonalExterno
+        horario = "07:00-22:00"
+        try:
+            pe = PersonalExterno.objects.get(usuario=guardia_usuario)
+            if pe.horario:
+                horario = pe.horario
+        except PersonalExterno.DoesNotExist:
+            pass
+
         hoy = date.today()
         registros = list(
             RegistroIngreso.objects.select_related(
@@ -59,6 +68,7 @@ class AccesoQuery:
         return GuardiaPanelType(
             nombre_completo=f"{guardia_usuario.apellidos} {guardia_usuario.nombres}",
             turno=guardia.turno,
+            horario=horario,
             ingreso_nombre=guardia.ingreso.nombre,
             facultad_nombre=guardia.ingreso.facultad.nombre,
             sede_nombre=guardia.ingreso.facultad.sede.nombre,
@@ -147,13 +157,14 @@ class AccesoQuery:
         if admin.rol.nombre != "admin":
             raise Exception("No tienes permiso para esta acción.")
         from usuarios.models import EmpresaExterna, PersonalExterno
-        empresas = EmpresaExterna.objects.all()
+        empresas = EmpresaExterna.objects.all().order_by("tipo", "nombre")
         result = []
         for e in empresas:
             trabajadores = PersonalExterno.objects.filter(empresa=e, usuario__activo=True).count()
             result.append({
                 "id_empresa": e.id_empresa,
                 "nombre": e.nombre,
+                "tipo": e.tipo,
                 "nit": e.nit or "",
                 "contacto_nombre": e.contacto_nombre or "",
                 "contrato_vigente": e.contrato_vigente,
@@ -165,12 +176,32 @@ class AccesoQuery:
         return json.dumps(result, ensure_ascii=False)
 
     @strawberry.field
-    def listar_ingresos(self, info) -> List[IngresoConGuardiaType]:
+    def listar_empresas_selector(self, info, tipo: Optional[str] = None) -> str:
+        """Lista simplificada de empresas activas para selects en formularios."""
+        admin = get_usuario_from_info(info)
+        if admin.rol.nombre != "admin":
+            raise Exception("No tienes permiso para esta acción.")
+        from usuarios.models import EmpresaExterna
+        qs = EmpresaExterna.objects.filter(activo=True)
+        if tipo:
+            qs = qs.filter(tipo=tipo)
+        result = [
+            {"id_empresa": e.id_empresa, "nombre": e.nombre, "tipo": e.tipo,
+             "contrato_vigente": e.contrato_vigente}
+            for e in qs.order_by("nombre")
+        ]
+        return json.dumps(result, ensure_ascii=False)
+
+    @strawberry.field
+    def listar_ingresos(self, info, solo_activos: bool = False) -> List[IngresoConGuardiaType]:
         admin = get_usuario_from_info(info)
         if admin.rol.nombre != "admin":
             raise Exception("No tienes permiso para esta acción.")
 
-        ingresos = Ingreso.objects.select_related("facultad__sede").filter(activo=True)
+        qs = Ingreso.objects.select_related("facultad__sede")
+        if solo_activos:
+            qs = qs.filter(activo=True)
+        ingresos = qs.order_by("facultad__nombre", "nombre")
         result = []
         for ing in ingresos:
             try:
@@ -190,5 +221,7 @@ class AccesoQuery:
                 sede_nombre=ing.facultad.sede.nombre,
                 guardia_nombre=guardia_nombre,
                 turno=turno,
+                activo=ing.activo,
+                id_facultad=ing.facultad.id_facultad,
             ))
         return result

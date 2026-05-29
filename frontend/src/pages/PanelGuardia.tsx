@@ -78,7 +78,7 @@ export default function PanelGuardia() {
                 📍 {panel?.ingresoNombre} — {panel?.facultadNombre?.split('(')[1]?.replace(')','') || panel?.facultadNombre}
               </p>
               <p className="text-blue-300 text-xs mt-0.5">
-                🌅 Turno: <span className="capitalize">{panel?.turno || '—'}</span> &nbsp;|&nbsp; 🏙️ {panel?.sedeNombre}
+                🕐 Horario: <span>{panel?.horario?.replace('-', ' - ') || '07:00 - 22:00'}</span> &nbsp;|&nbsp; 🏙️ {panel?.sedeNombre}
               </p>
             </div>
           </div>

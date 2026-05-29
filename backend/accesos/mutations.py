@@ -62,6 +62,24 @@ class AccesoMutation:
         if not usuario.activo:
             raise Exception("Usuario desactivado. Contacte al administrador.")
 
+        # Validar contrato vigente para personal externo
+        if usuario.tipo_usuario == "personal_externo":
+            try:
+                pe = PersonalExterno.objects.select_related("empresa").get(usuario=usuario)
+                empresa = pe.empresa
+                if not empresa.activo:
+                    raise Exception("Su empresa ha sido desactivada. No puede generar QR.")
+                if not empresa.contrato_vigente:
+                    raise Exception("El contrato de su empresa no está vigente. No puede generar QR.")
+                hoy = date.today()
+                if empresa.contrato_hasta and empresa.contrato_hasta < hoy:
+                    raise Exception(
+                        f"El contrato de su empresa venció el {empresa.contrato_hasta}. "
+                        "Contacte al administrador."
+                    )
+            except PersonalExterno.DoesNotExist:
+                raise Exception("No se encontró registro de personal externo para su usuario.")
+
         ahora = datetime.now(tz=timezone.utc)
         raw = f"{usuario.id_usuario}-{ahora}-{uuid4()}"
         token_hash = hashlib.sha256(raw.encode()).hexdigest()
@@ -147,6 +165,23 @@ class AccesoMutation:
                 u = qr.usuario
                 if not u.activo:
                     return _rechazado("El usuario ha sido desactivado.")
+
+                # Validar contrato vigente para personal externo
+                if u.tipo_usuario == "personal_externo":
+                    try:
+                        pe = PersonalExterno.objects.select_related("empresa").get(usuario=u)
+                        empresa = pe.empresa
+                        if not empresa.activo:
+                            return _rechazado("Acceso denegado: la empresa del visitante ha sido desactivada.")
+                        if not empresa.contrato_vigente:
+                            return _rechazado("Acceso denegado: el contrato de la empresa del visitante no está vigente.")
+                        if empresa.contrato_hasta and empresa.contrato_hasta < date.today():
+                            return _rechazado(
+                                f"Acceso denegado: el contrato de la empresa venció el {empresa.contrato_hasta}."
+                            )
+                    except PersonalExterno.DoesNotExist:
+                        return _rechazado("No se encontró registro de personal externo para este usuario.")
+
                 nombre = _nombre_completo(u)
                 sede, facultad, carrera = _datos_persona(u)
                 tipo = u.tipo_usuario

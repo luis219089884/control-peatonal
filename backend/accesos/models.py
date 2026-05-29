@@ -23,10 +23,12 @@ class Ingreso(models.Model):
 
 class Guardia(models.Model):
     TURNO_CHOICES = (
+        ("jornada", "Jornada 07:00 - 22:00"),
         ("manana", "Mañana"),
         ("tarde", "Tarde"),
         ("noche", "Noche"),
     )
+    TURNO_DEFAULT = "jornada"
 
     id_guardia = models.AutoField(primary_key=True)
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE)
