@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #f5f7fa;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f1f1; }
+  ::-webkit-scrollbar-thumb { background: #1a3a6b; border-radius: 3px; }
+}
+
+@layer components {
+  .input-field {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
+      transition-all duration-200 focus:outline-none focus:ring-2
+      focus:ring-[#1a3a6b] focus:border-[#1a3a6b] bg-white;
+  }
+  .label-field {
+    @apply block text-xs font-medium text-gray-600 mb-1;
+  }
+  .btn-primary {
+    @apply bg-[#1a3a6b] text-white px-4 py-2.5 rounded-lg text-sm font-semibold
+      hover:bg-[#0f2347] active:bg-[#0f2347] disabled:opacity-50
+      transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#1a3a6b] focus:ring-offset-2;
+  }
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-300 px-4 py-2.5 rounded-lg text-sm font-medium
+      hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50
+      transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300;
+  }
+}
+
+@layer utilities {
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
