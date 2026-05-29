@@ -30,6 +30,13 @@ print('Django OK')
 echo "Migraciones..."
 python manage.py migrate --noinput || echo "AVISO: migrate fallo (revisa DB_HOST / Session pooler Supabase)"
 
+echo "Datos iniciales (solo si la BD esta vacia)..."
+python manage.py shell -c "
+from usuarios.models import Rol
+import sys
+sys.exit(0 if Rol.objects.exists() else 1)
+" && echo "Datos ya existen, omitiendo loaddata" || python manage.py loaddata fixtures/datos_iniciales.json
+
 echo "Gunicorn en 0.0.0.0:${PORT}"
 exec gunicorn config.wsgi:application \
   --bind "0.0.0.0:${PORT}" \

@@ -74,5 +74,111 @@
     "cargo": "Administrador del Sistema",
     "area": "Tecnología de la Información",
     "fecha_ingreso": "2024-01-01"
+  }},
+
+  {"model": "usuarios.empresaexterna", "pk": 1, "fields": {
+    "nombre": "Seguridad UAGRM",
+    "nit": "123456789",
+    "contacto_nombre": "Coordinación Seguridad",
+    "contacto_telefono": null,
+    "contacto_email": null,
+    "contrato_vigente": true,
+    "contrato_desde": "2024-01-01",
+    "contrato_hasta": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }},
+
+  {"model": "accesos.ingreso", "pk": 1, "fields": {
+    "facultad": 1,
+    "nombre": "Puerta Principal FICCT",
+    "descripcion": "Acceso principal campus central",
+    "ubicacion": "Av. del Ejército s/n",
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }},
+
+  {"model": "usuarios.usuario", "pk": 2, "fields": {
+    "rol": 3,
+    "tipo_usuario": "estudiante",
+    "nombres": "Luis",
+    "apellidos": "Estudiante Prueba",
+    "ci": "9755780",
+    "sexo": null,
+    "estado_civil": null,
+    "fecha_nacimiento": null,
+    "nacionalidad": "Boliviana",
+    "direccion": null,
+    "email": "estudiante@uagrm.edu.bo",
+    "celular": null,
+    "telefono": null,
+    "password_hash": "da189e261f6482a233c515f532283d8e8b82862f2dc03fa6e443f528cc9b8251",
+    "foto_url": null,
+    "activo": true,
+    "totp_secret": null,
+    "totp_activo": false,
+    "creado_en": "2024-01-01T00:00:00Z",
+    "actualizado_en": "2024-01-01T00:00:00Z"
+  }},
+
+  {"model": "usuarios.estudiante", "pk": 1, "fields": {
+    "usuario": 2,
+    "nro_registro": "221045678",
+    "modalidad_ingreso": "Regular",
+    "periodo_ingreso": "2022-1",
+    "tipo_sangre": null,
+    "titulo_bachiller": null,
+    "pais": "Bolivia",
+    "departamento_origen": "Santa Cruz",
+    "provincia_origen": "Andrés Ibáñez"
+  }},
+
+  {"model": "accesos.personafacultad", "pk": 1, "fields": {
+    "usuario": 2,
+    "facultad": 1,
+    "carrera": 1,
+    "tipo_vinculo": "estudiante",
+    "activo": true,
+    "desde": "2024-01-01",
+    "hasta": null
+  }},
+
+  {"model": "usuarios.usuario", "pk": 3, "fields": {
+    "rol": 2,
+    "tipo_usuario": "personal_externo",
+    "nombres": "Juan",
+    "apellidos": "Guardia Prueba",
+    "ci": "1234567",
+    "sexo": null,
+    "estado_civil": null,
+    "fecha_nacimiento": null,
+    "nacionalidad": "Boliviana",
+    "direccion": null,
+    "email": "guardia@uagrm.edu.bo",
+    "celular": null,
+    "telefono": null,
+    "password_hash": "ff7119298165adc098cbe124b07ec8f0256d80539c4a4f08e10467700800222c",
+    "foto_url": null,
+    "activo": true,
+    "totp_secret": null,
+    "totp_activo": false,
+    "creado_en": "2024-01-01T00:00:00Z",
+    "actualizado_en": "2024-01-01T00:00:00Z"
+  }},
+
+  {"model": "usuarios.personalexterno", "pk": 1, "fields": {
+    "usuario": 3,
+    "empresa": 1,
+    "cargo": "Guardia de seguridad",
+    "horario": "08:00-16:00",
+    "fecha_inicio": "2024-01-01",
+    "fecha_fin": null
+  }},
+
+  {"model": "accesos.guardia", "pk": 1, "fields": {
+    "usuario": 3,
+    "ingreso": 1,
+    "turno": "manana",
+    "fecha_asignacion": "2024-01-01"
   }}
 ]
