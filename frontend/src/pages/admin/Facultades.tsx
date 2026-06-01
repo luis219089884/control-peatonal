@@ -23,7 +23,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner'
 interface Sede { idSede: number; nombre: string; ciudad: string; departamento: string }
 interface Facultad {
   idFacultad: number; nombre: string; descripcion?: string; activo: boolean
-  sede: { idSede: number; nombre: string; ciudad: string }
+  sede: { idSede: number; nombre: string; ciudad: string; departamento?: string }
 }
 interface Ingreso {
   idIngreso: number; nombre: string; descripcion?: string; ubicacion?: string
