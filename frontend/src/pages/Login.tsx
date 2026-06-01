@@ -6,8 +6,8 @@ import {
   VERIFICAR_LOGIN_2FA_MUTATION,
 } from '../graphql/mutations'
 import { useAuth } from '../context/AuthContext'
-import Button from '../components/ui/Button'
 import type { AuthUser } from '../context/AuthContext'
+import LoginBackground from '../components/LoginBackground'
 
 type TipoUsuario = Exclude<AuthUser['tipo_usuario'], 'guardia'> | 'administrativo'
 
@@ -15,98 +15,126 @@ interface RolConfig {
   value: TipoUsuario
   label: string
   tituloLogin: string
-  descripcion: string
+  iconLocal: string
+  iconRemoto: string
 }
 
-const ROLES: RolConfig[] = [
+const TODOS_LOS_ROLES: RolConfig[] = [
   {
     value: 'estudiante',
     label: 'ESTUDIANTE',
     tituloLogin: 'Estudiantes',
-    descripcion: 'Acceso con carnet y contraseña institucional',
+    iconLocal: '/images/icono-estudiante.png',
+    iconRemoto: 'https://perfil.uagrm.edu.bo/img/estudiante.png',
   },
   {
     value: 'docente',
     label: 'DOCENTE',
     tituloLogin: 'Docentes',
-    descripcion: 'Personal docente de la universidad',
+    iconLocal: '/images/icono-docente.png',
+    iconRemoto: 'https://perfil.uagrm.edu.bo/img/docente.png',
   },
   {
     value: 'administrativo',
     label: 'ADMINISTRATIVO',
     tituloLogin: 'Administrativos',
-    descripcion: 'Personal administrativo UAGRM',
+    iconLocal: '/images/icono-administrativo.png',
+    iconRemoto: 'https://perfil.uagrm.edu.bo/img/administrativo.png',
   },
   {
     value: 'personal_externo',
     label: 'PERSONAL EXTERNO',
     tituloLogin: 'Personal Externo',
-    descripcion: 'Empresas contratadas, proveedores y seguridad',
+    iconLocal: '/images/icono-externo.svg',
+    iconRemoto: '/images/icono-externo.svg',
   },
 ]
 
+const LOGO_LOCAL = '/images/logo-uagrm-horizontal.png'
+const LOGO_REMOTO = 'https://www.uagrm.edu.bo/img/logo-88x707-gray.png'
+
+const LOGIN_TEXT_SHADOW =
+  '[text-shadow:0_1px_8px_rgba(0,0,0,0.95),0_2px_18px_rgba(0,0,0,0.75)]'
+const LOGIN_TITLE_SHADOW =
+  '[text-shadow:0_2px_14px_rgba(0,0,0,1),0_0_32px_rgba(0,0,0,0.85)]'
+
+/** Solo borde sutil: el fondo de partículas se ve a través */
+const FORM_SHELL = 'rounded-md overflow-hidden border border-white/30 bg-transparent'
+const FORM_HEADER = 'border-b border-white/25 py-2.5 text-center bg-transparent'
+const FORM_HEADER_TEXT = `text-sm text-white font-semibold ${LOGIN_TEXT_SHADOW}`
+const INPUT_CLASS =
+  `w-full rounded px-4 py-3 text-sm font-medium text-white bg-transparent border border-white/35
+  placeholder:text-gray-200 placeholder:font-normal ${LOGIN_TEXT_SHADOW}
+  focus:outline-none focus:border-cyan-300/80 focus:ring-1 focus:ring-cyan-400/50 transition-all duration-200`
+const LINK_CLASS = `text-sm text-white font-medium hover:text-cyan-100 hover:underline ${LOGIN_TEXT_SHADOW}`
+
 type Pantalla = 'seleccion' | 'login' | 'codigo_2fa'
 
-const ICONOS_IMG: Partial<Record<TipoUsuario, { local: string; remoto: string }>> = {
-  estudiante: {
-    local: '/images/icono-estudiante.png',
-    remoto: 'https://perfil.uagrm.edu.bo/img/estudiante.png',
-  },
-}
-
-function IconoEstudiante({ activo }: { activo: boolean }) {
-  const cfg = ICONOS_IMG.estudiante!
+function IconoRol({
+  src, alt, remoto, grande,
+}: {
+  src: string; alt: string; remoto: string; grande?: boolean
+}) {
   return (
     <img
-      src={cfg.local}
-      alt="Estudiante"
-      className={`h-full w-auto max-h-24 object-contain object-bottom transition-all duration-300
-        ${activo ? 'opacity-100' : 'opacity-55 grayscale'}`}
-      onError={(e) => { (e.target as HTMLImageElement).src = cfg.remoto }}
+      src={src}
+      alt={alt}
+      className={`w-auto object-contain object-bottom transition-all duration-300
+        ${grande ? 'max-h-[80px] md:max-h-[96px]' : 'max-h-[58px] md:max-h-[68px]'}`}
+      onError={(e) => { (e.target as HTMLImageElement).src = remoto }}
     />
   )
 }
 
-function IconoDocente({ activo }: { activo: boolean }) {
+function TarjetaPerfil({
+  rol,
+  resaltada,
+  atenuada,
+  onElegir,
+  onPointerEnter,
+}: {
+  rol: RolConfig
+  resaltada: boolean
+  atenuada: boolean
+  onElegir: () => void
+  onPointerEnter: () => void
+}) {
   return (
-    <svg viewBox="0 0 80 100" className={`w-full h-full ${activo ? 'text-gray-900' : 'text-gray-400'}`} fill="currentColor">
-      <rect x="8" y="12" width="64" height="40" rx="2" opacity="0.15" />
-      <rect x="12" y="16" width="56" height="32" rx="1" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.4" />
-      <circle cx="40" cy="58" r="9" />
-      <path d="M26 78 Q40 68 54 78 L54 92 L26 92 Z" />
-      <rect x="34" y="8" width="12" height="8" rx="1" />
-    </svg>
+    <button
+      type="button"
+      onClick={onElegir}
+      onMouseEnter={onPointerEnter}
+      onFocus={onPointerEnter}
+      className={`
+        relative flex flex-col overflow-hidden bg-[#ececec] border border-gray-200/70
+        transition-all duration-300 ease-out cursor-pointer focus:outline-none
+        focus-visible:ring-2 focus-visible:ring-[#1a3a6b]/50
+        ${resaltada
+          ? 'w-[118px] sm:w-[132px] h-[138px] sm:h-[152px] z-20 shadow-[0_14px_32px_rgba(0,0,0,0.22)] -translate-y-1'
+          : 'w-[92px] sm:w-[102px] h-[108px] sm:h-[118px] z-0 shadow-sm'}
+        ${atenuada ? 'opacity-50 scale-[0.92]' : 'opacity-100 scale-100'}
+      `}
+      aria-label={rol.tituloLogin}
+    >
+      <div className="flex-1 flex items-end justify-center px-2 pt-3 pb-1 min-h-0">
+        <IconoRol
+          src={rol.iconLocal}
+          alt={rol.tituloLogin}
+          remoto={rol.iconRemoto}
+          grande={resaltada}
+        />
+      </div>
+      <div
+        className={`
+          w-full bg-[#1a3a6b] text-white text-center font-bold tracking-wider
+          transition-all duration-300 ease-out overflow-hidden
+          ${resaltada ? 'py-2.5 text-[11px] sm:text-xs opacity-100 max-h-12' : 'py-0 text-[10px] opacity-0 max-h-0'}
+        `}
+      >
+        {rol.label}
+      </div>
+    </button>
   )
-}
-
-function IconoAdministrativo({ activo }: { activo: boolean }) {
-  return (
-    <svg viewBox="0 0 80 100" className={`w-full h-full ${activo ? 'text-gray-900' : 'text-gray-400'}`} fill="currentColor">
-      <rect x="14" y="20" width="52" height="32" rx="2" opacity="0.2" />
-      <rect x="18" y="24" width="44" height="24" rx="1" opacity="0.35" />
-      <circle cx="40" cy="62" r="9" />
-      <path d="M24 82 Q40 72 56 82 L56 94 L24 94 Z" />
-    </svg>
-  )
-}
-
-function IconoExterno({ activo }: { activo: boolean }) {
-  return (
-    <svg viewBox="0 0 80 100" className={`w-full h-full ${activo ? 'text-gray-900' : 'text-gray-400'}`} fill="currentColor">
-      <rect x="20" y="14" width="40" height="28" rx="2" opacity="0.2" />
-      <path d="M28 42 L40 30 L52 42 Z" opacity="0.4" />
-      <circle cx="40" cy="58" r="9" />
-      <path d="M26 78 Q40 68 54 78 L54 92 L26 92 Z" />
-      <rect x="32" y="8" width="16" height="6" rx="1" opacity="0.35" />
-    </svg>
-  )
-}
-
-const ICONOS: Record<TipoUsuario, (p: { activo: boolean }) => JSX.Element> = {
-  estudiante: IconoEstudiante,
-  docente: IconoDocente,
-  administrativo: IconoAdministrativo,
-  personal_externo: IconoExterno,
 }
 
 export default function Login() {
@@ -133,8 +161,8 @@ export default function Login() {
     else navigate('/perfil', { replace: true })
   }
 
-  const rolConfig = ROLES.find(r => r.value === rolSeleccionado)
-  const rolActivo = rolSeleccionado ?? hoverRol
+  const rolConfig = TODOS_LOS_ROLES.find(r => r.value === rolSeleccionado) ?? null
+  const rolActivo = hoverRol
 
   const redirigir = (rol: string) => {
     if (rol === 'admin') navigate('/admin')
@@ -152,6 +180,8 @@ export default function Login() {
 
   const volverSeleccion = () => {
     setPantalla('seleccion')
+    setRolSeleccionado(null)
+    setHoverRol(null)
     setError('')
     setCodigo('')
   }
@@ -209,90 +239,69 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4 py-10">
+    <div className="relative min-h-screen overflow-hidden flex flex-col items-center justify-center px-4 py-10">
+      <LoginBackground />
 
-      {/* Logo universidad */}
-      <div className="text-center mb-8 max-w-lg">
+      <div className="relative z-10 w-full flex flex-col items-center max-w-5xl">
+
+      {/* Logo UAGRM — horizontal gris (oficial) */}
+      <header className="text-center mb-10 w-full max-w-2xl">
         <img
-          src="/images/logo-uagrm.png"
+          src={LOGO_LOCAL}
           alt="Universidad Autónoma Gabriel René Moreno"
-          className="h-20 md:h-24 w-auto mx-auto object-contain"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://yt3.googleusercontent.com/A5oCd23orj8aZlRySPPyKSpN42nlZpM9cgwGVIzW66XoMTtCEhbBNgGQtSuBLremqaYHNt4xfPk=s900-c-k-c0x00ffffff-no-rj'
-          }}
+          className="w-full max-w-xl mx-auto h-auto object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.35)]"
+          onError={(e) => { (e.target as HTMLImageElement).src = LOGO_REMOTO }}
         />
-        <p className="mt-3 text-xs text-gray-400 tracking-wide">
-          Universidad Autónoma Gabriel René Moreno
-        </p>
-      </div>
+      </header>
 
-      {/* ── PANTALLA 1: Selección de tipo de cuenta ── */}
+      {/* ── Selección de perfil (estilo perfil.uagrm.edu.bo) ── */}
       {pantalla === 'seleccion' && (
-        <div className="w-full max-w-3xl fade-in text-center">
-          <h1 className="text-2xl font-bold text-[#8B1A1A] mb-2">
+        <main className="w-full max-w-4xl fade-in text-center">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-[#8B1A1A] mb-3 tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]">
             Bienvenido al Perfil
           </h1>
-          <p className="text-[#1a3a6b] font-medium mb-10">
+          <p className="text-[#e8e4e6] font-semibold text-base md:text-lg mb-10">
             Elige tu tipo de cuenta
           </p>
 
-          {/* Iconos de roles */}
-          <div className="flex flex-wrap items-end justify-center gap-4 md:gap-8 mb-8">
-            {ROLES.map(rol => {
-              const activo = rolActivo === rol.value
-              const Icon = ICONOS[rol.value]
-              return (
-                <button
-                  key={rol.value}
-                  type="button"
-                  onClick={() => elegirRol(rol.value)}
-                  onMouseEnter={() => setHoverRol(rol.value)}
-                  onMouseLeave={() => setHoverRol(null)}
-                  className={`flex flex-col items-center transition-all duration-300 focus:outline-none
-                    ${activo ? 'scale-110' : 'scale-90 opacity-60 hover:opacity-90 hover:scale-95'}`}
-                  style={{ width: activo ? 120 : 90 }}
-                >
-                  <div className="h-24 w-full flex items-end justify-center mb-2">
-                    <Icon activo={activo} />
-                  </div>
-                  {activo && (
-                    <div className="w-full bg-[#1a3a6b] text-white text-xs font-bold py-2 px-1 tracking-wider animate-pulse">
-                      {rol.label}
-                    </div>
-                  )}
-                </button>
-              )
-            })}
+          <div
+            className="flex flex-wrap items-end justify-center gap-3 sm:gap-4 md:gap-5 mb-8 min-h-[160px] sm:min-h-[168px]"
+            onMouseLeave={() => setHoverRol(null)}
+          >
+            {TODOS_LOS_ROLES.map(rol => (
+              <TarjetaPerfil
+                key={rol.value}
+                rol={rol}
+                resaltada={rolActivo === rol.value}
+                atenuada={rolActivo !== null && rolActivo !== rol.value}
+                onElegir={() => elegirRol(rol.value)}
+                onPointerEnter={() => setHoverRol(rol.value)}
+              />
+            ))}
           </div>
 
-          {/* Nombre del rol seleccionado al pasar el mouse */}
-          {rolActivo && pantalla === 'seleccion' && (
-            <p className="text-sm text-gray-500 mb-6">
-              Clic en el ícono para ingresar como{' '}
-              <strong className="text-[#1a3a6b] capitalize">
-                {ROLES.find(r => r.value === rolActivo)?.tituloLogin}
-              </strong>
-            </p>
-          )}
-
-          <p className="text-sm text-[#1a3a6b] hover:underline cursor-pointer">
-            ¿Olvidaste tu contraseña?
+          <p className="text-sm">
+            <button
+              type="button"
+              className="text-[#d8d2d5] hover:text-white hover:underline font-medium transition-colors"
+              onClick={() => {}}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
           </p>
-        </div>
+        </main>
       )}
 
-      {/* ── PANTALLA 2: Login por rol ── */}
+      {/* ── Formulario de login ── */}
       {pantalla === 'login' && rolConfig && (
         <div className="w-full max-w-md fade-in">
-          <div className="border border-gray-300 rounded-sm overflow-hidden shadow-sm bg-white">
-            {/* Barra gris superior */}
-            <div className="bg-[#e8e8e8] border-b border-gray-300 py-2.5 text-center">
-              <span className="text-sm text-gray-600 font-medium">Inicio de sesión</span>
+          <div className={FORM_SHELL}>
+            <div className={FORM_HEADER}>
+              <span className={FORM_HEADER_TEXT}>Inicio de sesión</span>
             </div>
 
             <div className="px-8 py-8">
-              <h2 className="text-3xl font-bold text-gray-800 text-center mb-8">
+              <h2 className={`text-2xl md:text-3xl font-bold text-white text-center mb-8 ${LOGIN_TITLE_SHADOW}`}>
                 {rolConfig.tituloLogin}
               </h2>
 
@@ -304,9 +313,7 @@ export default function Login() {
                   placeholder="Carnet de identidad"
                   required
                   autoFocus
-                  className="w-full bg-[#e8f4fc] border border-[#c5dce8] rounded px-4 py-3 text-sm
-                    text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#1a3a6b]
-                    transition-all duration-200"
+                  className={INPUT_CLASS}
                 />
 
                 <div className="relative">
@@ -316,22 +323,21 @@ export default function Login() {
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Contraseña"
                     required
-                    className="w-full bg-[#e8f4fc] border border-[#c5dce8] rounded px-4 py-3 text-sm
-                      text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#1a3a6b]
-                      transition-all duration-200 pr-10"
+                    className={`${INPUT_CLASS} pr-10`}
                   />
                   <button
                     type="button"
                     tabIndex={-1}
                     onClick={() => setMostrarPass(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white"
+                    aria-label={mostrarPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   >
                     {mostrarPass ? '🙈' : '👁'}
                   </button>
                 </div>
 
                 {error && (
-                  <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                  <div className={`text-red-100 text-sm font-medium rounded px-3 py-2 border border-red-400/50 bg-red-950/25 ${LOGIN_TEXT_SHADOW}`}>
                     ⚠️ {error}
                   </div>
                 )}
@@ -339,46 +345,44 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#4a4a4a] hover:bg-[#333] text-white font-medium py-3 rounded
-                    transition-all duration-200 disabled:opacity-50 text-sm tracking-wide"
+                  className={`w-full bg-[#8B1A1A]/75 hover:bg-[#8B1A1A]/90 text-white font-semibold py-3 rounded
+                    border border-white/25 transition-all duration-200 disabled:opacity-50 text-sm tracking-wide ${LOGIN_TEXT_SHADOW}`}
                 >
                   {loading ? 'Verificando...' : 'Iniciar Sesión'}
                 </button>
               </form>
 
               <p className="text-center mt-5">
-                <button
-                  type="button"
-                  onClick={volverSeleccion}
-                  className="text-sm text-[#1a3a6b] hover:underline"
-                >
+                <button type="button" onClick={volverSeleccion} className={LINK_CLASS}>
                   ← Elegir otro tipo de cuenta
                 </button>
               </p>
             </div>
           </div>
 
-          <p className="text-center mt-4 text-sm text-[#1a3a6b] hover:underline cursor-pointer">
-            ¿Olvidaste tu contraseña?
+          <p className="text-center mt-4">
+            <button type="button" className={LINK_CLASS}>
+              ¿Olvidaste tu contraseña?
+            </button>
           </p>
         </div>
       )}
 
-      {/* ── 2FA: Código TOTP ── */}
+      {/* ── 2FA ── */}
       {pantalla === 'codigo_2fa' && (
         <div className="w-full max-w-md fade-in">
-          <div className="border border-gray-300 rounded-sm overflow-hidden shadow-sm bg-white">
-            <div className="bg-[#e8e8e8] border-b border-gray-300 py-2.5 text-center">
-              <span className="text-sm text-gray-600 font-medium">Verificación en dos pasos</span>
+          <div className={FORM_SHELL}>
+            <div className={FORM_HEADER}>
+              <span className={FORM_HEADER_TEXT}>Verificación en dos pasos</span>
             </div>
 
             <div className="px-8 py-8 space-y-5">
               <div className="text-center">
-                <div className="text-4xl mb-2">🔐</div>
-                <p className="text-sm text-gray-600">
+                <div className="text-4xl mb-2 drop-shadow-lg">🔐</div>
+                <p className={`text-sm text-white ${LOGIN_TEXT_SHADOW}`}>
                   Hola, <strong>{nombreUsuario}</strong>
                 </p>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className={`text-xs text-gray-100 mt-2 ${LOGIN_TEXT_SHADOW}`}>
                   Ingresa el código de 6 dígitos de Google Authenticator
                 </p>
               </div>
@@ -390,11 +394,10 @@ export default function Login() {
                 onChange={e => setCodigo(e.target.value.replace(/\D/g, ''))}
                 placeholder="000000"
                 autoFocus
-                className="w-full bg-[#e8f4fc] border border-[#c5dce8] rounded px-4 py-4 text-center
-                  text-2xl font-mono tracking-[0.4em] focus:outline-none focus:border-[#1a3a6b]"
+                className={`${INPUT_CLASS} py-4 text-center text-2xl font-mono tracking-[0.4em]`}
               />
               {error && (
-                <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+                <div className={`text-red-100 text-sm font-medium rounded px-3 py-2 border border-red-400/50 bg-red-950/25 ${LOGIN_TEXT_SHADOW}`}>
                   ⚠️ {error}
                 </div>
               )}
@@ -402,16 +405,15 @@ export default function Login() {
                 type="button"
                 onClick={handleVerificar}
                 disabled={loading2FA}
-                className="w-full bg-[#4a4a4a] hover:bg-[#333] text-white font-medium py-3 rounded
-                  disabled:opacity-50 text-sm"
+                className={`w-full bg-[#8B1A1A]/75 hover:bg-[#8B1A1A]/90 text-white font-semibold py-3 rounded
+                  border border-white/25 disabled:opacity-50 text-sm ${LOGIN_TEXT_SHADOW}`}
               >
                 {loading2FA ? 'Verificando...' : 'Verificar código'}
               </button>
-
               <button
                 type="button"
                 onClick={volverSeleccion}
-                className="w-full text-sm text-gray-400 hover:text-gray-600"
+                className={`w-full ${LINK_CLASS}`}
               >
                 ← Volver
               </button>
@@ -420,10 +422,11 @@ export default function Login() {
         </div>
       )}
 
-      {/* Pie del sistema */}
-      <p className="mt-8 text-xs text-gray-400 text-center">
+      <footer className="mt-10 text-xs text-gray-400 text-center">
         Sistema de Control Peatonal — UAGRM
-      </p>
+      </footer>
+
+      </div>
     </div>
   )
 }

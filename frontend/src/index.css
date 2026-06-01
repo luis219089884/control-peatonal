@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -36,12 +36,42 @@
 }
 
 @layer utilities {
+  .font-serif {
+    font-family: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+  }
   .fade-in {
     animation: fadeIn 0.3s ease-in-out;
   }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Login: red de partículas conectadas (canvas) ── */
+  .login-network-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: #060c10;
+  }
+
+  .login-network-bg__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .login-network-bg__vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 90% 80% at 50% 42%,
+      transparent 35%,
+      rgba(4, 8, 12, 0.55) 100%
+    );
+    pointer-events: none;
   }
 }
 
