@@ -4,6 +4,7 @@ import { useQuery, useMutation, useLazyQuery } from '@apollo/client'
 import {
   LISTAR_USUARIOS_QUERY, LISTAR_INGRESOS_QUERY,
   DETALLE_USUARIO_QUERY, LISTAR_EMPRESAS_SELECTOR_QUERY,
+  LISTAR_FACULTADES_QUERY, LISTAR_CARRERAS_QUERY,
 } from '../../graphql/queries'
 import {
   CREAR_USUARIO_MUTATION,
@@ -39,10 +40,17 @@ interface FormBase {
   email: string; celular: string; password: string; rol: string;
 }
 interface FormExt {
-  nro_registro?: string; modalidad_ingreso?: string; periodo_ingreso?: string;
+  nro_registro?: string;
   codigo_docente?: string; especialidad?: string; categoria?: string;
   codigo_admin?: string; cargo?: string; area?: string;
   empresa?: string; id_ingreso?: string;
+}
+interface CarreraSlot {
+  id_facultad: string
+  id_carrera: string
+  paralelo: string
+  modalidad: string
+  periodo: string
 }
 
 interface UsuarioRow {
@@ -66,11 +74,16 @@ function ModalUsuarioForm({
   onClose: () => void
   onGuardado: () => void
 }) {
+  const EMPTY_CARRERA: CarreraSlot = { id_facultad: '', id_carrera: '', paralelo: '', modalidad: '', periodo: '' }
+
   const [paso, setPaso] = useState<1 | 2>(1)
   const [base, setBase] = useState<FormBase>({
     nombres: '', apellidos: '', ci: '', email: '', celular: '', password: '', rol: 'usuario',
   })
   const [ext, setExt] = useState<FormExt>({})
+  const [carrera1, setCarrera1] = useState<CarreraSlot>(EMPTY_CARRERA)
+  const [carrera2, setCarrera2] = useState<CarreraSlot>(EMPTY_CARRERA)
+  const [mostrarCarrera2, setMostrarCarrera2] = useState(false)
   const [error, setError] = useState('')
   const [cargandoDetalle, setCargandoDetalle] = useState(mode === 'edit')
 
@@ -91,6 +104,28 @@ function ModalUsuarioForm({
   const empresasDisponibles: { id_empresa: number; nombre: string; contrato_vigente: boolean }[] =
     empData?.listarEmpresasSelector ? JSON.parse(empData.listarEmpresasSelector) : []
 
+  // Facultades y carreras para estudiante
+  const { data: facData } = useQuery(LISTAR_FACULTADES_QUERY, {
+    skip: tipo !== 'estudiante',
+    variables: { soloActivas: true },
+  })
+  const facultades: { idFacultad: number; nombre: string; sede: { nombre: string } }[] =
+    facData?.listarFacultades ?? []
+
+  const { data: car1Data } = useQuery(LISTAR_CARRERAS_QUERY, {
+    skip: tipo !== 'estudiante' || !carrera1.id_facultad,
+    variables: { idFacultad: carrera1.id_facultad ? +carrera1.id_facultad : undefined },
+    fetchPolicy: 'network-only',
+  })
+  const carrerasList1: { idCarrera: number; nombre: string }[] = car1Data?.listarCarreras ?? []
+
+  const { data: car2Data } = useQuery(LISTAR_CARRERAS_QUERY, {
+    skip: tipo !== 'estudiante' || !carrera2.id_facultad || !mostrarCarrera2,
+    variables: { idFacultad: carrera2.id_facultad ? +carrera2.id_facultad : undefined },
+    fetchPolicy: 'network-only',
+  })
+  const carrerasList2: { idCarrera: number; nombre: string }[] = car2Data?.listarCarreras ?? []
+
   useEffect(() => {
     if (mode !== 'edit' || !idUsuario) return
     setCargandoDetalle(true)
@@ -108,8 +143,6 @@ function ModalUsuarioForm({
       })
       setExt({
         nro_registro: d.nro_registro || '',
-        modalidad_ingreso: d.modalidad_ingreso || '',
-        periodo_ingreso: d.periodo_ingreso || '',
         codigo_docente: d.codigo_docente || '',
         especialidad: d.especialidad || '',
         categoria: d.categoria || '',
@@ -119,6 +152,27 @@ function ModalUsuarioForm({
         empresa: d.empresa || '',
         id_ingreso: d.id_ingreso ? String(d.id_ingreso) : '',
       })
+      if (d.carreras && d.carreras.length > 0) {
+        const c1 = d.carreras[0]
+        setCarrera1({
+          id_facultad: c1.id_facultad ? String(c1.id_facultad) : '',
+          id_carrera: c1.id_carrera ? String(c1.id_carrera) : '',
+          paralelo: c1.paralelo || '',
+          modalidad: c1.modalidad_ingreso || '',
+          periodo: c1.periodo_ingreso || '',
+        })
+        if (d.carreras.length > 1) {
+          const c2 = d.carreras[1]
+          setCarrera2({
+            id_facultad: c2.id_facultad ? String(c2.id_facultad) : '',
+            id_carrera: c2.id_carrera ? String(c2.id_carrera) : '',
+            paralelo: c2.paralelo || '',
+            modalidad: c2.modalidad_ingreso || '',
+            periodo: c2.periodo_ingreso || '',
+          })
+          setMostrarCarrera2(true)
+        }
+      }
       setCargandoDetalle(false)
     }).catch(() => {
       setError('Error al cargar los datos del usuario.')
@@ -139,23 +193,29 @@ function ModalUsuarioForm({
     (mode === 'edit' || (base.password && base.password.length >= 6))
 
   const variablesComunes = {
-    nombres:          base.nombres,
-    apellidos:        base.apellidos,
-    ci:               base.ci,
-    email:            base.email || null,
-    celular:          base.celular || null,
-    rol:              tipo === 'personal_externo' ? base.rol : 'usuario',
-    nroRegistro:      ext.nro_registro || null,
-    modalidadIngreso: ext.modalidad_ingreso || null,
-    periodoIngreso:   ext.periodo_ingreso || null,
-    codigoDocente:    ext.codigo_docente || null,
-    especialidad:     ext.especialidad || null,
-    categoria:        ext.categoria || null,
-    codigoAdmin:      ext.codigo_admin || null,
-    cargo:            ext.cargo || null,
-    area:             ext.area || null,
-    empresa:          ext.empresa || null,
-    idIngreso:        ext.id_ingreso ? +ext.id_ingreso : null,
+    nombres:       base.nombres,
+    apellidos:     base.apellidos,
+    ci:            base.ci,
+    email:         base.email || null,
+    celular:       base.celular || null,
+    rol:           tipo === 'personal_externo' ? base.rol : 'usuario',
+    nroRegistro:   ext.nro_registro || null,
+    codigoDocente: ext.codigo_docente || null,
+    especialidad:  ext.especialidad || null,
+    categoria:     ext.categoria || null,
+    codigoAdmin:   ext.codigo_admin || null,
+    cargo:         ext.cargo || null,
+    area:          ext.area || null,
+    empresa:       ext.empresa || null,
+    idIngreso:     ext.id_ingreso ? +ext.id_ingreso : null,
+    idCarrera1:    carrera1.id_carrera ? +carrera1.id_carrera : null,
+    paralelo1:     carrera1.paralelo || null,
+    modalidad1:    carrera1.modalidad || null,
+    periodo1:      carrera1.periodo || null,
+    idCarrera2:    mostrarCarrera2 && carrera2.id_carrera ? +carrera2.id_carrera : null,
+    paralelo2:     mostrarCarrera2 && carrera2.id_carrera ? (carrera2.paralelo || null) : null,
+    modalidad2:    mostrarCarrera2 && carrera2.id_carrera ? (carrera2.modalidad || null) : null,
+    periodo2:      mostrarCarrera2 && carrera2.id_carrera ? (carrera2.periodo || null) : null,
   }
 
   const handleGuardar = async () => {
@@ -276,16 +336,157 @@ function ModalUsuarioForm({
                         <label className="label-field">Nro. Registro *</label>
                         <input value={ext.nro_registro || ''} onChange={e => setE('nro_registro', e.target.value)} className="input-field" />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+
+                      {/* ── Carrera 1 ── */}
+                      <div className="border border-blue-100 bg-blue-50/50 rounded-lg p-3 space-y-3">
+                        <p className="text-xs font-semibold text-[#1a3a6b] uppercase tracking-wide">Carrera principal *</p>
                         <div>
-                          <label className="label-field">Modalidad Ingreso</label>
-                          <input value={ext.modalidad_ingreso || ''} onChange={e => setE('modalidad_ingreso', e.target.value)} className="input-field" />
+                          <label className="label-field">Facultad *</label>
+                          <select
+                            className="input-field"
+                            value={carrera1.id_facultad}
+                            onChange={e => setCarrera1(c => ({ ...c, id_facultad: e.target.value, id_carrera: '' }))}
+                          >
+                            <option value="">— Selecciona facultad —</option>
+                            {facultades.map((f: { idFacultad: number; nombre: string; sede: { nombre: string } }) => (
+                              <option key={f.idFacultad} value={f.idFacultad}>
+                                {f.nombre} ({f.sede.nombre})
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        <div>
-                          <label className="label-field">Período Ingreso</label>
-                          <input value={ext.periodo_ingreso || ''} onChange={e => setE('periodo_ingreso', e.target.value)} className="input-field" />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="label-field">Carrera *</label>
+                            <select
+                              className="input-field"
+                              value={carrera1.id_carrera}
+                              onChange={e => setCarrera1(c => ({ ...c, id_carrera: e.target.value }))}
+                              disabled={!carrera1.id_facultad}
+                            >
+                              <option value="">— Selecciona carrera —</option>
+                              {carrerasList1.map((c: { idCarrera: number; nombre: string }) => (
+                                <option key={c.idCarrera} value={c.idCarrera}>{c.nombre}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="label-field">Paralelo</label>
+                            <input
+                              className="input-field"
+                              value={carrera1.paralelo}
+                              onChange={e => setCarrera1(c => ({ ...c, paralelo: e.target.value }))}
+                              placeholder="A, B, 1, 2..."
+                              maxLength={5}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="label-field">Modalidad Ingreso</label>
+                            <input
+                              className="input-field"
+                              value={carrera1.modalidad}
+                              onChange={e => setCarrera1(c => ({ ...c, modalidad: e.target.value }))}
+                              placeholder="Regular, Becado..."
+                            />
+                          </div>
+                          <div>
+                            <label className="label-field">Período Ingreso</label>
+                            <input
+                              className="input-field"
+                              value={carrera1.periodo}
+                              onChange={e => setCarrera1(c => ({ ...c, periodo: e.target.value }))}
+                              placeholder="2024-I"
+                            />
+                          </div>
                         </div>
                       </div>
+
+                      {/* ── Carrera 2 ── */}
+                      {mostrarCarrera2 ? (
+                        <div className="border border-amber-100 bg-amber-50/40 rounded-lg p-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Segunda carrera</p>
+                            <button
+                              type="button"
+                              onClick={() => { setMostrarCarrera2(false); setCarrera2(EMPTY_CARRERA) }}
+                              className="text-xs text-red-500 hover:text-red-700"
+                            >
+                              ✕ Quitar
+                            </button>
+                          </div>
+                          <div>
+                            <label className="label-field">Facultad</label>
+                            <select
+                              className="input-field"
+                              value={carrera2.id_facultad}
+                              onChange={e => setCarrera2(c => ({ ...c, id_facultad: e.target.value, id_carrera: '' }))}
+                            >
+                              <option value="">— Selecciona facultad —</option>
+                              {facultades.map((f: { idFacultad: number; nombre: string; sede: { nombre: string } }) => (
+                                <option key={f.idFacultad} value={f.idFacultad}>
+                                  {f.nombre} ({f.sede.nombre})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="label-field">Carrera</label>
+                              <select
+                                className="input-field"
+                                value={carrera2.id_carrera}
+                                onChange={e => setCarrera2(c => ({ ...c, id_carrera: e.target.value }))}
+                                disabled={!carrera2.id_facultad}
+                              >
+                                <option value="">— Selecciona carrera —</option>
+                                {carrerasList2.map((c: { idCarrera: number; nombre: string }) => (
+                                  <option key={c.idCarrera} value={c.idCarrera}>{c.nombre}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="label-field">Paralelo</label>
+                              <input
+                                className="input-field"
+                                value={carrera2.paralelo}
+                                onChange={e => setCarrera2(c => ({ ...c, paralelo: e.target.value }))}
+                                placeholder="A, B, 1, 2..."
+                                maxLength={5}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="label-field">Modalidad Ingreso</label>
+                              <input
+                                className="input-field"
+                                value={carrera2.modalidad}
+                                onChange={e => setCarrera2(c => ({ ...c, modalidad: e.target.value }))}
+                                placeholder="Regular, Becado..."
+                              />
+                            </div>
+                            <div>
+                              <label className="label-field">Período Ingreso</label>
+                              <input
+                                className="input-field"
+                                value={carrera2.periodo}
+                                onChange={e => setCarrera2(c => ({ ...c, periodo: e.target.value }))}
+                                placeholder="2025-I"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setMostrarCarrera2(true)}
+                          className="text-sm text-[#1a3a6b] hover:underline font-medium"
+                        >
+                          + Agregar segunda carrera
+                        </button>
+                      )}
                     </>
                   )}
                   {tipo === 'docente' && (

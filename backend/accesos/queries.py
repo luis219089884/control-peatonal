@@ -4,10 +4,11 @@ from typing import List, Optional
 
 import strawberry
 
-from accesos.models import Guardia, Ingreso, RegistroIngreso
+from accesos.models import Guardia, Ingreso, Invitado, RegistroIngreso
 from accesos.types import (
     GuardiaPanelType,
     IngresoConGuardiaType,
+    InvitadoType,
     RegistroIngresoType,
 )
 from usuarios.utils import get_usuario_from_info
@@ -15,6 +16,19 @@ from usuarios.utils import get_usuario_from_info
 
 @strawberry.type
 class AccesoQuery:
+
+    @strawberry.field
+    def mis_invitados(self, info) -> List[InvitadoType]:
+        """Devuelve todos los invitados registrados por el usuario autenticado."""
+        usuario = get_usuario_from_info(info)
+        if usuario.tipo_usuario not in ("docente", "administrativo"):
+            raise Exception("Solo docentes o administrativos pueden ver sus invitados.")
+        return list(
+            Invitado.objects
+            .select_related("facultad_destino__sede", "registrado_por")
+            .filter(registrado_por=usuario)
+            .order_by("-creado_en")
+        )
 
     @strawberry.field
     def mis_registros_hoy(self, info) -> List[RegistroIngresoType]:

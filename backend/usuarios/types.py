@@ -117,6 +117,7 @@ class PersonalExternoType:
 class PersonaFacultadType:
     id_persona_facultad: int
     tipo_vinculo: str
+    paralelo: Optional[str]
     activo: bool
     desde: date
     hasta: Optional[date]

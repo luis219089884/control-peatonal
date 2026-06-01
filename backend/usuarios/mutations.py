@@ -237,12 +237,15 @@ class UsuarioMutation:
         self, info, tipo_usuario: str, nombres: str, apellidos: str,
         ci: str, password: str, email: Optional[str] = None, celular: Optional[str] = None,
         rol: Optional[str] = None, nro_registro: Optional[str] = None,
-        modalidad_ingreso: Optional[str] = None, periodo_ingreso: Optional[str] = None,
         codigo_docente: Optional[str] = None, especialidad: Optional[str] = None,
         categoria: Optional[str] = None, codigo_admin: Optional[str] = None,
         cargo: Optional[str] = None, area: Optional[str] = None,
         empresa: Optional[str] = None, turno: Optional[str] = None,
         id_ingreso: Optional[int] = None,
+        id_carrera_1: Optional[int] = None, paralelo_1: Optional[str] = None,
+        modalidad_1: Optional[str] = None, periodo_1: Optional[str] = None,
+        id_carrera_2: Optional[int] = None, paralelo_2: Optional[str] = None,
+        modalidad_2: Optional[str] = None, periodo_2: Optional[str] = None,
     ) -> CrearUsuarioResponseType:
         try:
             admin = get_usuario_from_info(info)
@@ -300,8 +303,31 @@ class UsuarioMutation:
             )
 
             if tipo_usuario == "estudiante":
-                Estudiante.objects.create(usuario=usuario, nro_registro=nro_registro,
-                    modalidad_ingreso=modalidad_ingreso, periodo_ingreso=periodo_ingreso)
+                Estudiante.objects.create(usuario=usuario, nro_registro=nro_registro)
+                from accesos.models import PersonaFacultad
+                carreras_input = [
+                    (id_carrera_1, paralelo_1, modalidad_1, periodo_1),
+                    (id_carrera_2, paralelo_2, modalidad_2, periodo_2),
+                ]
+                for id_car, paralelo, modalidad, periodo in carreras_input:
+                    if not id_car:
+                        continue
+                    try:
+                        carrera_obj = Carrera.objects.select_related("facultad").get(id_carrera=id_car)
+                    except Carrera.DoesNotExist:
+                        usuario.delete()
+                        return CrearUsuarioResponseType(ok=False, message=f"Carrera con id {id_car} no encontrada.")
+                    PersonaFacultad.objects.get_or_create(
+                        usuario=usuario,
+                        facultad=carrera_obj.facultad,
+                        carrera=carrera_obj,
+                        tipo_vinculo="estudiante",
+                        defaults={
+                            "paralelo": paralelo or "",
+                            "modalidad_ingreso": modalidad or None,
+                            "periodo_ingreso": periodo or None,
+                        },
+                    )
             elif tipo_usuario == "docente":
                 Docente.objects.create(usuario=usuario, codigo_docente=codigo_docente,
                     especialidad=especialidad, categoria=categoria)
@@ -349,12 +375,16 @@ class UsuarioMutation:
         self, info, id_usuario: int, nombres: str, apellidos: str,
         ci: str, email: Optional[str] = None, celular: Optional[str] = None,
         password: Optional[str] = None, rol: Optional[str] = None,
-        nro_registro: Optional[str] = None, modalidad_ingreso: Optional[str] = None,
-        periodo_ingreso: Optional[str] = None, codigo_docente: Optional[str] = None,
+        nro_registro: Optional[str] = None,
+        codigo_docente: Optional[str] = None,
         especialidad: Optional[str] = None, categoria: Optional[str] = None,
         codigo_admin: Optional[str] = None, cargo: Optional[str] = None,
         area: Optional[str] = None, empresa: Optional[str] = None,
         turno: Optional[str] = None, id_ingreso: Optional[int] = None,
+        id_carrera_1: Optional[int] = None, paralelo_1: Optional[str] = None,
+        modalidad_1: Optional[str] = None, periodo_1: Optional[str] = None,
+        id_carrera_2: Optional[int] = None, paralelo_2: Optional[str] = None,
+        modalidad_2: Optional[str] = None, periodo_2: Optional[str] = None,
     ) -> CrearUsuarioResponseType:
         try:
             admin = get_usuario_from_info(info)
@@ -422,9 +452,47 @@ class UsuarioMutation:
                 if est.nro_registro != nro_registro and Estudiante.objects.filter(nro_registro=nro_registro).exclude(pk=est.pk).exists():
                     return CrearUsuarioResponseType(ok=False, message="Ya existe un estudiante con ese nro. de registro.")
                 est.nro_registro = nro_registro
-                est.modalidad_ingreso = modalidad_ingreso
-                est.periodo_ingreso = periodo_ingreso
                 est.save()
+                from accesos.models import PersonaFacultad
+                carreras_input = [
+                    (id_carrera_1, paralelo_1, modalidad_1, periodo_1),
+                    (id_carrera_2, paralelo_2, modalidad_2, periodo_2),
+                ]
+                ids_nuevos = [id_car for id_car, *_ in carreras_input if id_car]
+                PersonaFacultad.objects.filter(usuario=usuario, tipo_vinculo="estudiante").exclude(
+                    carrera__id_carrera__in=ids_nuevos
+                ).delete()
+                for id_car, paralelo, modalidad, periodo in carreras_input:
+                    if not id_car:
+                        continue
+                    try:
+                        carrera_obj = Carrera.objects.select_related("facultad").get(id_carrera=id_car)
+                    except Carrera.DoesNotExist:
+                        return CrearUsuarioResponseType(ok=False, message=f"Carrera con id {id_car} no encontrada.")
+                    pf, created = PersonaFacultad.objects.get_or_create(
+                        usuario=usuario,
+                        facultad=carrera_obj.facultad,
+                        carrera=carrera_obj,
+                        tipo_vinculo="estudiante",
+                        defaults={
+                            "paralelo": paralelo or "",
+                            "modalidad_ingreso": modalidad or None,
+                            "periodo_ingreso": periodo or None,
+                        },
+                    )
+                    if not created:
+                        changed = False
+                        if pf.paralelo != (paralelo or ""):
+                            pf.paralelo = paralelo or ""
+                            changed = True
+                        if pf.modalidad_ingreso != (modalidad or None):
+                            pf.modalidad_ingreso = modalidad or None
+                            changed = True
+                        if pf.periodo_ingreso != (periodo or None):
+                            pf.periodo_ingreso = periodo or None
+                            changed = True
+                        if changed:
+                            pf.save(update_fields=["paralelo", "modalidad_ingreso", "periodo_ingreso"])
             elif tipo_usuario == "docente":
                 doc, _ = Docente.objects.get_or_create(usuario=usuario, defaults={"codigo_docente": codigo_docente})
                 if doc.codigo_docente != codigo_docente and Docente.objects.filter(codigo_docente=codigo_docente).exclude(pk=doc.pk).exists():
@@ -793,5 +861,111 @@ class UsuarioMutation:
             ingreso.activo = True
             ingreso.save()
             return ResponseType(success=True, message=f"Puerta '{ingreso.nombre}' reactivada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    # ─── Carreras ─────────────────────────────────────────────────────────────
+
+    @strawberry.mutation
+    def crear_carrera(
+        self, info, id_facultad: int, nombre: str,
+        codigo: str, duracion_anios: Optional[int] = None,
+    ) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            if not nombre.strip():
+                return ResponseType(success=False, message="El nombre de la carrera es requerido.")
+            if not codigo.strip():
+                return ResponseType(success=False, message="El código es requerido.")
+            try:
+                facultad = Facultad.objects.get(id_facultad=id_facultad)
+            except Facultad.DoesNotExist:
+                return ResponseType(success=False, message="Facultad no encontrada.")
+            if not facultad.activo:
+                return ResponseType(success=False, message="La facultad está inactiva.")
+            if Carrera.objects.filter(codigo__iexact=codigo.strip()).exists():
+                return ResponseType(success=False, message=f"Ya existe una carrera con el código '{codigo}'.")
+            if Carrera.objects.filter(nombre__iexact=nombre.strip(), facultad=facultad).exists():
+                return ResponseType(success=False, message="Ya existe una carrera con ese nombre en esta facultad.")
+            Carrera.objects.create(
+                facultad=facultad,
+                nombre=nombre.strip(),
+                codigo=codigo.strip().upper(),
+                duracion_anios=duracion_anios,
+            )
+            return ResponseType(success=True, message=f"Carrera '{nombre}' creada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def editar_carrera(
+        self, info, id_carrera: int, nombre: str,
+        codigo: str, id_facultad: Optional[int] = None,
+        duracion_anios: Optional[int] = None,
+    ) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            try:
+                carrera = Carrera.objects.select_related("facultad").get(id_carrera=id_carrera)
+            except Carrera.DoesNotExist:
+                return ResponseType(success=False, message="Carrera no encontrada.")
+            if not nombre.strip():
+                return ResponseType(success=False, message="El nombre es requerido.")
+            if not codigo.strip():
+                return ResponseType(success=False, message="El código es requerido.")
+            facultad = carrera.facultad
+            if id_facultad and id_facultad != carrera.facultad.id_facultad:
+                try:
+                    facultad = Facultad.objects.get(id_facultad=id_facultad)
+                except Facultad.DoesNotExist:
+                    return ResponseType(success=False, message="Facultad no encontrada.")
+            if Carrera.objects.filter(codigo__iexact=codigo.strip()).exclude(id_carrera=id_carrera).exists():
+                return ResponseType(success=False, message=f"El código '{codigo}' ya lo usa otra carrera.")
+            if Carrera.objects.filter(nombre__iexact=nombre.strip(), facultad=facultad).exclude(id_carrera=id_carrera).exists():
+                return ResponseType(success=False, message="Ya existe otra carrera con ese nombre en esta facultad.")
+            carrera.nombre = nombre.strip()
+            carrera.codigo = codigo.strip().upper()
+            carrera.facultad = facultad
+            carrera.duracion_anios = duracion_anios
+            carrera.save()
+            return ResponseType(success=True, message=f"Carrera '{carrera.nombre}' actualizada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def desactivar_carrera(self, info, id_carrera: int) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            try:
+                carrera = Carrera.objects.get(id_carrera=id_carrera)
+            except Carrera.DoesNotExist:
+                return ResponseType(success=False, message="Carrera no encontrada.")
+            carrera.activo = False
+            carrera.save()
+            return ResponseType(success=True, message=f"Carrera '{carrera.nombre}' desactivada.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def activar_carrera(self, info, id_carrera: int) -> ResponseType:
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            try:
+                carrera = Carrera.objects.get(id_carrera=id_carrera)
+            except Carrera.DoesNotExist:
+                return ResponseType(success=False, message="Carrera no encontrada.")
+            if not carrera.facultad.activo:
+                return ResponseType(success=False, message="No se puede activar una carrera de una facultad inactiva.")
+            carrera.activo = True
+            carrera.save()
+            return ResponseType(success=True, message=f"Carrera '{carrera.nombre}' reactivada correctamente.")
         except Exception as e:
             return ResponseType(success=False, message=f"Error: {str(e)}")

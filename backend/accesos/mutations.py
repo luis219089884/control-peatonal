@@ -70,15 +70,15 @@ class AccesoMutation:
                 if not empresa.activo:
                     raise Exception("Su empresa ha sido desactivada. No puede generar QR.")
                 if not empresa.contrato_vigente:
-                    raise Exception("El contrato de su empresa no está vigente. No puede generar QR.")
+                    raise Exception("El contrato de su empresa no est? vigente. No puede generar QR.")
                 hoy = date.today()
                 if empresa.contrato_hasta and empresa.contrato_hasta < hoy:
                     raise Exception(
-                        f"El contrato de su empresa venció el {empresa.contrato_hasta}. "
+                        f"El contrato de su empresa venci? el {empresa.contrato_hasta}. "
                         "Contacte al administrador."
                     )
             except PersonalExterno.DoesNotExist:
-                raise Exception("No se encontró registro de personal externo para su usuario.")
+                raise Exception("No se encontr? registro de personal externo para su usuario.")
 
         ahora = datetime.now(tz=timezone.utc)
         raw = f"{usuario.id_usuario}-{ahora}-{uuid4()}"
@@ -119,28 +119,28 @@ class AccesoMutation:
                     usuario=guardia_usuario
                 )
             except Guardia.DoesNotExist:
-                return _rechazado("No se encontró un guardia asociado a este usuario.")
+                return _rechazado("No se encontr? un guardia asociado a este usuario.")
 
-            # Verificar que el guardia está en el ingreso correcto
+            # Verificar que el guardia est? en el ingreso correcto
             if guardia.ingreso.id_ingreso != id_ingreso:
-                return _rechazado("No estás asignado a esta puerta de ingreso.")
+                return _rechazado("No est?s asignado a esta puerta de ingreso.")
 
             if not token_hash or not token_hash.strip():
-                return _rechazado("Token QR vacío.")
+                return _rechazado("Token QR vac?o.")
 
             try:
                 qr = QrToken.objects.select_related("usuario", "invitado").get(
                     token_hash=token_hash.strip()
                 )
             except QrToken.DoesNotExist:
-                return _rechazado("QR no reconocido. Verifique el código.")
+                return _rechazado("QR no reconocido. Verifique el c?digo.")
 
             if qr.usado:
                 return _rechazado("Este QR ya fue utilizado anteriormente.")
 
             ahora = datetime.now(tz=timezone.utc)
             if qr.expira_en < ahora:
-                return _rechazado("QR expirado. Solicite un nuevo código.")
+                return _rechazado("QR expirado. Solicite un nuevo c?digo.")
 
             try:
                 ingreso = Ingreso.objects.select_related("facultad__sede").get(
@@ -153,7 +153,7 @@ class AccesoMutation:
             if qr.invitado:
                 inv = qr.invitado
                 if inv.fecha_visita != date.today():
-                    return _rechazado("Su visita está programada para otra fecha.")
+                    return _rechazado("Su visita est? programada para otra fecha.")
                 nombre = f"{inv.apellidos} {inv.nombres}"
                 sede = ingreso.facultad.sede.nombre
                 facultad = inv.facultad_destino.nombre
@@ -174,13 +174,13 @@ class AccesoMutation:
                         if not empresa.activo:
                             return _rechazado("Acceso denegado: la empresa del visitante ha sido desactivada.")
                         if not empresa.contrato_vigente:
-                            return _rechazado("Acceso denegado: el contrato de la empresa del visitante no está vigente.")
+                            return _rechazado("Acceso denegado: el contrato de la empresa del visitante no est? vigente.")
                         if empresa.contrato_hasta and empresa.contrato_hasta < date.today():
                             return _rechazado(
-                                f"Acceso denegado: el contrato de la empresa venció el {empresa.contrato_hasta}."
+                                f"Acceso denegado: el contrato de la empresa venci? el {empresa.contrato_hasta}."
                             )
                     except PersonalExterno.DoesNotExist:
-                        return _rechazado("No se encontró registro de personal externo para este usuario.")
+                        return _rechazado("No se encontr? registro de personal externo para este usuario.")
 
                 nombre = _nombre_completo(u)
                 sede, facultad, carrera = _datos_persona(u)
@@ -228,8 +228,8 @@ class AccesoMutation:
         ci: str,
         motivo_visita: str,
         fecha_visita: date,
+        email: str,
         celular: Optional[str] = None,
-        email: Optional[str] = None,
         horas_validez: int = 24,
     ) -> InvitadoRegistradoType:
         try:
@@ -243,6 +243,11 @@ class AccesoMutation:
             if not nombres.strip() or not apellidos.strip() or not ci.strip():
                 return InvitadoRegistradoType(
                     success=False, message="Nombres, apellidos y CI son requeridos.",
+                    id_invitado=None, token_qr=None, expira_en=None,
+                )
+            if not email or not email.strip():
+                return InvitadoRegistradoType(
+                    success=False, message="El email del invitado es obligatorio para enviar el QR.",
                     id_invitado=None, token_qr=None, expira_en=None,
                 )
 
@@ -266,7 +271,7 @@ class AccesoMutation:
                 apellidos=apellidos.strip(),
                 ci=ci.strip(),
                 celular=celular,
-                email=email,
+                email=email.strip(),
                 motivo_visita=motivo_visita,
                 fecha_visita=fecha_visita,
                 expira_en=expira_en,
@@ -282,18 +287,66 @@ class AccesoMutation:
                 expira_en=expira_en,
             )
 
+            # Enviar email con QR al invitado
+            from accesos.email_utils import enviar_email_invitado
+            registrado_por_nombre = f"{usuario.nombres} {usuario.apellidos}"
+            email_ok = enviar_email_invitado(
+                email_destino=email.strip(),
+                nombre_invitado=f"{nombres.strip()} {apellidos.strip()}",
+                registrado_por=registrado_por_nombre,
+                facultad_destino=facultad.nombre,
+                motivo_visita=motivo_visita,
+                fecha_visita=str(fecha_visita),
+                token_hash=token_hash,
+                expira_en=expira_en,
+            )
+
+            msg = f"Invitado {apellidos} {nombres} registrado correctamente."
+            if email_ok:
+                msg += f" Email enviado a {email.strip()}."
+            else:
+                msg += " (No se pudo enviar el email, pero el token fue generado.)"
+
             return InvitadoRegistradoType(
                 success=True,
-                message=f"Invitado {apellidos} {nombres} registrado correctamente.",
+                message=msg,
                 id_invitado=invitado.id_invitado,
                 token_qr=token_hash,
                 expira_en=expira_en,
+                email_enviado=email_ok,
+                email_destino=email.strip(),
             )
         except Exception as e:
             return InvitadoRegistradoType(
                 success=False, message=f"Error al registrar invitado: {str(e)}",
                 id_invitado=None, token_qr=None, expira_en=None,
             )
+
+    @strawberry.mutation
+    def cancelar_invitado(self, info, id_invitado: int) -> ResponseType:
+        """Cancela (desactiva) un invitado registrado por el usuario autenticado."""
+        try:
+            usuario = get_usuario_from_info(info)
+            try:
+                invitado = Invitado.objects.get(id_invitado=id_invitado)
+            except Invitado.DoesNotExist:
+                return ResponseType(success=False, message="Invitado no encontrado.")
+            if invitado.registrado_por_id != usuario.id_usuario:
+                return ResponseType(success=False, message="No puedes cancelar un invitado que no registraste.")
+            if not invitado.activo:
+                return ResponseType(success=False, message="El invitado ya esta cancelado.")
+            if invitado.ya_ingreso:
+                return ResponseType(success=False, message="El invitado ya ingreso, no se puede cancelar.")
+            invitado.activo = False
+            invitado.save(update_fields=["activo"])
+            # Invalidar el token QR asociado
+            QrToken.objects.filter(invitado=invitado, usado=False).update(usado=True)
+            return ResponseType(
+                success=True,
+                message=f"Invitado {invitado.apellidos} {invitado.nombres} cancelado correctamente."
+            )
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
 
     @strawberry.mutation
     def crear_ingreso(
@@ -307,7 +360,7 @@ class AccesoMutation:
         try:
             admin = get_usuario_from_info(info)
             if admin.rol.nombre != "admin":
-                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+                return ResponseType(success=False, message="No tienes permiso para esta acci?n.")
             if not nombre or not nombre.strip():
                 return ResponseType(success=False, message="El nombre de la puerta es requerido.")
 

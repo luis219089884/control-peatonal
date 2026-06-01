@@ -38,6 +38,7 @@ class InvitadoType:
     expira_en: datetime
     ya_ingreso: bool
     activo: bool
+    creado_en: datetime
     facultad_destino: FacultadType
 
 
@@ -92,6 +93,8 @@ class InvitadoRegistradoType:
     id_invitado: Optional[int]
     token_qr: Optional[str]
     expira_en: Optional[datetime]
+    email_enviado: bool = False
+    email_destino: Optional[str] = None
 
 
 @strawberry.type

@@ -121,3 +121,22 @@ export const LISTAR_INGRESOS_QUERY = gql`
     }
   }
 `
+
+export const LISTAR_CARRERAS_QUERY = gql`
+  query ListarCarreras($idFacultad: Int, $soloActivas: Boolean) {
+    listarCarreras(idFacultad: $idFacultad, soloActivas: $soloActivas) {
+      idCarrera nombre codigo duracionAnios activo
+      facultad { idFacultad nombre sede { nombre } }
+    }
+  }
+`
+
+export const MIS_INVITADOS_QUERY = gql`
+  query MisInvitados {
+    misInvitados {
+      idInvitado nombres apellidos ci email celular
+      motivoVisita fechaVisita expiraEn yaIngreso activo creadoEn
+      facultadDestino { idFacultad nombre sede { nombre } }
+    }
+  }
+`

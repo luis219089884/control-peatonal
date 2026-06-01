@@ -14,7 +14,12 @@ import {
   EDITAR_INGRESO_MUTATION,
   DESACTIVAR_INGRESO_MUTATION,
   ACTIVAR_INGRESO_MUTATION,
+  CREAR_CARRERA_MUTATION,
+  EDITAR_CARRERA_MUTATION,
+  DESACTIVAR_CARRERA_MUTATION,
+  ACTIVAR_CARRERA_MUTATION,
 } from '../../graphql/mutations'
+import { LISTAR_CARRERAS_QUERY } from '../../graphql/queries'
 import Button from '../../components/ui/Button'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 
@@ -29,6 +34,11 @@ interface Ingreso {
   idIngreso: number; nombre: string; descripcion?: string; ubicacion?: string
   facultadNombre: string; sedeNombre: string; guardiaNombre?: string
   turno?: string; activo: boolean; idFacultad: number
+}
+interface CarreraRow {
+  idCarrera: number; nombre: string; codigo: string; activo: boolean
+  duracion?: number
+  facultad: { idFacultad: number; nombre: string; sede: { nombre: string } }
 }
 
 // ─── Modal Facultad ───────────────────────────────────────────────────────────
@@ -206,18 +216,116 @@ function ModalIngreso({
   )
 }
 
+// ─── Modal Carrera ────────────────────────────────────────────────────────────
+
+function ModalCarrera({
+  carrera, facultades, onClose, onGuardada,
+}: {
+  carrera: CarreraRow | null
+  facultades: Facultad[]
+  onClose: () => void
+  onGuardada: () => void
+}) {
+  const isEdit = carrera !== null
+  const activasFacs = facultades.filter(f => f.activo)
+  const [nombre, setNombre] = useState(isEdit ? carrera.nombre : '')
+  const [codigo, setCodigo] = useState(isEdit ? carrera.codigo : '')
+  const [duracion, setDuracion] = useState(isEdit ? String(carrera.duracion ?? '') : '')
+  const [idFacultad, setIdFacultad] = useState(
+    isEdit ? carrera.facultad.idFacultad : (activasFacs[0]?.idFacultad ?? 0)
+  )
+  const [error, setError] = useState('')
+
+  const [crear, { loading: lCrear }] = useMutation(CREAR_CARRERA_MUTATION)
+  const [editar, { loading: lEditar }] = useMutation(EDITAR_CARRERA_MUTATION)
+  const loading = lCrear || lEditar
+
+  const handleGuardar = async () => {
+    setError('')
+    if (!nombre.trim()) { setError('El nombre es requerido.'); return }
+    if (!codigo.trim()) { setError('El código es requerido.'); return }
+    if (!idFacultad) { setError('Selecciona una facultad.'); return }
+    const duracionAnios = duracion ? parseInt(duracion) : null
+    try {
+      if (isEdit) {
+        const { data } = await editar({
+          variables: { idCarrera: carrera.idCarrera, nombre: nombre.trim(), codigo: codigo.trim(), idFacultad, duracionAnios },
+        })
+        if (!data?.editarCarrera?.success) { setError(data?.editarCarrera?.message || 'Error'); return }
+      } else {
+        const { data } = await crear({
+          variables: { idFacultad, nombre: nombre.trim(), codigo: codigo.trim(), duracionAnios },
+        })
+        if (!data?.crearCarrera?.success) { setError(data?.crearCarrera?.message || 'Error'); return }
+      }
+      onGuardada(); onClose()
+    } catch (e: unknown) { setError((e as Error).message) }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="bg-[#1a3a6b] text-white px-6 py-4 rounded-t-xl flex justify-between items-center">
+          <h3 className="font-bold text-lg">{isEdit ? '✏️ Editar Carrera' : '➕ Nueva Carrera'}</h3>
+          <button onClick={onClose} className="text-white/70 hover:text-white text-xl">✕</button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="label-field">Facultad *</label>
+            <select value={idFacultad} onChange={e => setIdFacultad(+e.target.value)} className="input-field">
+              <option value={0} disabled>Seleccionar facultad...</option>
+              {activasFacs.map(f => (
+                <option key={f.idFacultad} value={f.idFacultad}>
+                  {f.nombre} ({f.sede.nombre})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label-field">Nombre *</label>
+            <input value={nombre} onChange={e => setNombre(e.target.value)} className="input-field"
+              placeholder="Ej: Ingeniería en Sistemas de Computación e Informática" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label-field">Código *</label>
+              <input value={codigo} onChange={e => setCodigo(e.target.value)} className="input-field"
+                placeholder="FICCT-SIS" />
+            </div>
+            <div>
+              <label className="label-field">Duración (años)</label>
+              <input type="number" min={1} max={10} value={duracion}
+                onChange={e => setDuracion(e.target.value)} className="input-field" placeholder="5" />
+            </div>
+          </div>
+          {error && <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">⚠️ {error}</div>}
+        </div>
+        <div className="px-6 pb-5 flex justify-end gap-3">
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleGuardar} loading={loading}>
+            {isEdit ? '💾 Guardar cambios' : '✅ Crear Carrera'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
-type Confirm = { tipo: 'facultad' | 'ingreso'; id: number; nombre: string; activo: boolean }
+type Confirm = { tipo: 'facultad' | 'ingreso' | 'carrera'; id: number; nombre: string; activo: boolean }
 
 export default function Facultades() {
-  const [tab, setTab] = useState<'facultades' | 'ingresos'>('facultades')
+  const [tab, setTab] = useState<'facultades' | 'ingresos' | 'carreras'>('facultades')
   const [modalFac, setModalFac] = useState<{ facultad: Facultad | null } | null>(null)
   const [modalIng, setModalIng] = useState<{ ingreso: Ingreso | null } | null>(null)
+  const [modalCar, setModalCar] = useState<{ carrera: CarreraRow | null } | null>(null)
   const [confirm, setConfirm] = useState<Confirm | null>(null)
   const [msg, setMsg] = useState('')
   const [filtroEstadoFac, setFiltroEstadoFac] = useState('activa')
   const [filtroEstadoIng, setFiltroEstadoIng] = useState('activa')
+  const [filtroEstadoCar, setFiltroEstadoCar] = useState('activa')
+  const [filtroFacultadCar, setFiltroFacultadCar] = useState('')
 
   const { data: sedesData } = useQuery(LISTAR_SEDES_QUERY)
   const { data: facData, loading: loadingFac, refetch: refetchFac } = useQuery(LISTAR_FACULTADES_QUERY, {
@@ -226,10 +334,22 @@ export default function Facultades() {
   const { data: ingData, loading: loadingIng, refetch: refetchIng } = useQuery(LISTAR_INGRESOS_QUERY, {
     variables: { soloActivos: false },
   })
+  const { data: carData, loading: loadingCar, refetch: refetchCar } = useQuery(LISTAR_CARRERAS_QUERY, {
+    variables: { soloActivas: false },
+    fetchPolicy: 'network-only',
+  })
 
   const sedes: Sede[] = sedesData?.listarSedes ?? []
   const todasFacultades: Facultad[] = facData?.listarFacultades ?? []
   const todosIngresos: Ingreso[] = ingData?.listarIngresos ?? []
+  const todasCarreras: CarreraRow[] = (carData?.listarCarreras ?? []).map((c: { idCarrera: number; nombre: string; codigo: string; duracionAnios?: number; activo?: boolean; facultad: { idFacultad: number; nombre: string; sede: { nombre: string } } }) => ({
+    idCarrera: c.idCarrera,
+    nombre: c.nombre,
+    codigo: c.codigo,
+    duracion: c.duracionAnios,
+    activo: c.activo !== false,
+    facultad: c.facultad,
+  }))
 
   const facultades = todasFacultades.filter(f => {
     if (filtroEstadoFac === 'activa') return f.activo
@@ -248,7 +368,9 @@ export default function Facultades() {
   const [activarFac,    { loading: laFac }] = useMutation(ACTIVAR_FACULTAD_MUTATION)
   const [desactivarIng, { loading: ldIng }] = useMutation(DESACTIVAR_INGRESO_MUTATION)
   const [activarIng,    { loading: laIng }] = useMutation(ACTIVAR_INGRESO_MUTATION)
-  const loadingConfirm = ldFac || laFac || ldIng || laIng
+  const [desactivarCar, { loading: ldCar }] = useMutation(DESACTIVAR_CARRERA_MUTATION)
+  const [activarCar,    { loading: laCar }] = useMutation(ACTIVAR_CARRERA_MUTATION)
+  const loadingConfirm = ldFac || laFac || ldIng || laIng || ldCar || laCar
 
   const handleToggle = async () => {
     if (!confirm) return
@@ -259,16 +381,30 @@ export default function Facultades() {
         const { data } = await mut({ variables: { idFacultad: confirm.id } })
         setMsg(data?.[key]?.message || 'Listo.')
         refetchFac()
-      } else {
+      } else if (confirm.tipo === 'ingreso') {
         const mut = confirm.activo ? desactivarIng : activarIng
         const key = confirm.activo ? 'desactivarIngreso' : 'activarIngreso'
         const { data } = await mut({ variables: { idIngreso: confirm.id } })
         setMsg(data?.[key]?.message || 'Listo.')
         refetchIng()
+      } else {
+        const mut = confirm.activo ? desactivarCar : activarCar
+        const key = confirm.activo ? 'desactivarCarrera' : 'activarCarrera'
+        const { data } = await mut({ variables: { idCarrera: confirm.id } })
+        setMsg(data?.[key]?.message || 'Listo.')
+        refetchCar()
       }
       setConfirm(null)
     } catch (e: unknown) { setMsg((e as Error).message) }
   }
+
+  // Filtros carreras
+  const carreras = todasCarreras.filter(c => {
+    if (filtroEstadoCar === 'activa' && !c.activo) return false
+    if (filtroEstadoCar === 'inactiva' && c.activo) return false
+    if (filtroFacultadCar && c.facultad.idFacultad !== +filtroFacultadCar) return false
+    return true
+  })
 
   const porSede: Record<string, Facultad[]> = {}
   facultades.forEach(f => {
@@ -302,7 +438,7 @@ export default function Facultades() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
-        {([['facultades', '🏛️ Facultades'], ['ingresos', '🚪 Ingresos / Puertas']] as const).map(([id, label]) => (
+        {([['facultades', '🏛️ Facultades'], ['ingresos', '🚪 Puertas'], ['carreras', '🎓 Carreras']] as const).map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-5 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px
               ${tab === id ? 'border-[#1a3a6b] text-[#1a3a6b]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
@@ -479,6 +615,101 @@ export default function Facultades() {
         </div>
       )}
 
+      {/* ── TAB CARRERAS ── */}
+      {tab === 'carreras' && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <select value={filtroEstadoCar} onChange={e => setFiltroEstadoCar(e.target.value)} className="input-field w-36">
+              <option value="activa">Activas</option>
+              <option value="inactiva">Inactivas</option>
+              <option value="">Todas</option>
+            </select>
+            <select value={filtroFacultadCar} onChange={e => setFiltroFacultadCar(e.target.value)} className="input-field w-56">
+              <option value="">Todas las facultades</option>
+              {todasFacultades.filter(f => f.activo).map(f => (
+                <option key={f.idFacultad} value={f.idFacultad}>{f.nombre}</option>
+              ))}
+            </select>
+            <span className="text-xs text-gray-400 flex-1">
+              {carreras.length} carrera{carreras.length !== 1 ? 's' : ''}
+            </span>
+            <Button onClick={() => setModalCar({ carrera: null })}>+ Nueva Carrera</Button>
+          </div>
+
+          {loadingCar ? (
+            <div className="flex justify-center mt-12"><LoadingSpinner text="Cargando carreras..." /></div>
+          ) : carreras.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 bg-white rounded-xl shadow-card">
+              <p className="text-4xl mb-3">🎓</p>
+              <p>No hay carreras registradas{filtroFacultadCar ? ' para esta facultad' : ''}.</p>
+              <button onClick={() => setModalCar({ carrera: null })} className="mt-3 text-sm text-[#1a3a6b] hover:underline">
+                + Crear primera carrera
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      {['Carrera', 'Código', 'Facultad', 'Sede', 'Duración', 'Estado', 'Acciones'].map(h => (
+                        <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {carreras.map(c => (
+                      <tr key={c.idCarrera} className="border-b border-gray-50 hover:bg-blue-50 transition-colors">
+                        <td className="py-3 px-4 font-medium text-gray-800 max-w-[220px]">
+                          <span className="line-clamp-2">{c.nombre}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-mono font-semibold whitespace-nowrap">
+                            {c.codigo}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-gray-600 text-xs max-w-[180px] truncate">{c.facultad.nombre}</td>
+                        <td className="py-3 px-4 text-gray-500 text-xs whitespace-nowrap">{c.facultad.sede.nombre}</td>
+                        <td className="py-3 px-4 text-gray-500 text-xs whitespace-nowrap">
+                          {c.duracion ? `${c.duracion} años` : '—'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                            c.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                          }`}>
+                            {c.activo ? '● Activa' : '● Inactiva'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1">
+                            {c.activo && (
+                              <button
+                                onClick={() => setModalCar({ carrera: c })}
+                                className="text-xs px-2.5 py-1.5 rounded-lg bg-blue-50 text-[#1a3a6b] hover:bg-blue-100 font-medium transition-colors"
+                              >
+                                ✏️ Editar
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setConfirm({ tipo: 'carrera', id: c.idCarrera, nombre: c.nombre, activo: c.activo })}
+                              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors ${
+                                c.activo ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-700 hover:bg-green-100'
+                              }`}
+                            >
+                              {c.activo ? '🚫 Desactivar' : '✅ Activar'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Modales */}
       {modalFac !== null && (
         <ModalFacultad
@@ -504,14 +735,26 @@ export default function Facultades() {
         />
       )}
 
+      {modalCar !== null && (
+        <ModalCarrera
+          carrera={modalCar.carrera}
+          facultades={todasFacultades}
+          onClose={() => setModalCar(null)}
+          onGuardada={() => {
+            refetchCar()
+            setMsg(modalCar.carrera ? 'Carrera actualizada.' : 'Carrera creada correctamente.')
+          }}
+        />
+      )}
+
       {/* Confirmar activar / desactivar */}
       {confirm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <h3 className="font-bold text-gray-800 text-lg">
               {confirm.activo
-                ? `⚠️ Desactivar ${confirm.tipo === 'facultad' ? 'facultad' : 'puerta'}`
-                : `✅ Activar ${confirm.tipo === 'facultad' ? 'facultad' : 'puerta'}`}
+                ? `⚠️ Desactivar ${confirm.tipo === 'facultad' ? 'facultad' : confirm.tipo === 'carrera' ? 'carrera' : 'puerta'}`
+                : `✅ Activar ${confirm.tipo === 'facultad' ? 'facultad' : confirm.tipo === 'carrera' ? 'carrera' : 'puerta'}`}
             </h3>
             <p className="text-sm text-gray-600">
               {confirm.activo ? (

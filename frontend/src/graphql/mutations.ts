@@ -84,8 +84,8 @@ export const REGISTRAR_INVITADO_MUTATION = gql`
     $nombres: String!
     $apellidos: String!
     $ci: String!
+    $email: String!
     $celular: String
-    $email: String
     $motivoVisita: String!
     $fechaVisita: Date!
     $horasValidez: Int
@@ -95,8 +95,8 @@ export const REGISTRAR_INVITADO_MUTATION = gql`
       nombres: $nombres
       apellidos: $apellidos
       ci: $ci
-      celular: $celular
       email: $email
+      celular: $celular
       motivoVisita: $motivoVisita
       fechaVisita: $fechaVisita
       horasValidez: $horasValidez
@@ -106,6 +106,8 @@ export const REGISTRAR_INVITADO_MUTATION = gql`
       idInvitado
       tokenQr
       expiraEn
+      emailEnviado
+      emailDestino
     }
   }
 `
@@ -226,8 +228,6 @@ export const CREAR_USUARIO_MUTATION = gql`
     $password: String!
     $rol: String
     $nroRegistro: String
-    $modalidadIngreso: String
-    $periodoIngreso: String
     $codigoDocente: String
     $especialidad: String
     $categoria: String
@@ -237,6 +237,14 @@ export const CREAR_USUARIO_MUTATION = gql`
     $empresa: String
     $turno: String
     $idIngreso: Int
+    $idCarrera1: Int
+    $paralelo1: String
+    $modalidad1: String
+    $periodo1: String
+    $idCarrera2: Int
+    $paralelo2: String
+    $modalidad2: String
+    $periodo2: String
   ) {
     crearUsuario(
       tipoUsuario: $tipoUsuario
@@ -248,8 +256,6 @@ export const CREAR_USUARIO_MUTATION = gql`
       password: $password
       rol: $rol
       nroRegistro: $nroRegistro
-      modalidadIngreso: $modalidadIngreso
-      periodoIngreso: $periodoIngreso
       codigoDocente: $codigoDocente
       especialidad: $especialidad
       categoria: $categoria
@@ -259,6 +265,14 @@ export const CREAR_USUARIO_MUTATION = gql`
       empresa: $empresa
       turno: $turno
       idIngreso: $idIngreso
+      idCarrera1: $idCarrera1
+      paralelo1: $paralelo1
+      modalidad1: $modalidad1
+      periodo1: $periodo1
+      idCarrera2: $idCarrera2
+      paralelo2: $paralelo2
+      modalidad2: $modalidad2
+      periodo2: $periodo2
     ) {
       ok
       message
@@ -278,8 +292,6 @@ export const ACTUALIZAR_USUARIO_MUTATION = gql`
     $password: String
     $rol: String
     $nroRegistro: String
-    $modalidadIngreso: String
-    $periodoIngreso: String
     $codigoDocente: String
     $especialidad: String
     $categoria: String
@@ -289,6 +301,14 @@ export const ACTUALIZAR_USUARIO_MUTATION = gql`
     $empresa: String
     $turno: String
     $idIngreso: Int
+    $idCarrera1: Int
+    $paralelo1: String
+    $modalidad1: String
+    $periodo1: String
+    $idCarrera2: Int
+    $paralelo2: String
+    $modalidad2: String
+    $periodo2: String
   ) {
     actualizarUsuario(
       idUsuario: $idUsuario
@@ -300,8 +320,6 @@ export const ACTUALIZAR_USUARIO_MUTATION = gql`
       password: $password
       rol: $rol
       nroRegistro: $nroRegistro
-      modalidadIngreso: $modalidadIngreso
-      periodoIngreso: $periodoIngreso
       codigoDocente: $codigoDocente
       especialidad: $especialidad
       categoria: $categoria
@@ -311,6 +329,14 @@ export const ACTUALIZAR_USUARIO_MUTATION = gql`
       empresa: $empresa
       turno: $turno
       idIngreso: $idIngreso
+      idCarrera1: $idCarrera1
+      paralelo1: $paralelo1
+      modalidad1: $modalidad1
+      periodo1: $periodo1
+      idCarrera2: $idCarrera2
+      paralelo2: $paralelo2
+      modalidad2: $modalidad2
+      periodo2: $periodo2
     ) {
       ok
       message
@@ -334,5 +360,39 @@ export const ACTIVAR_USUARIO_MUTATION = gql`
       success
       message
     }
+  }
+`
+
+export const CANCELAR_INVITADO_MUTATION = gql`
+  mutation CancelarInvitado($idInvitado: Int!) {
+    cancelarInvitado(idInvitado: $idInvitado) { success message }
+  }
+`
+
+export const CREAR_CARRERA_MUTATION = gql`
+  mutation CrearCarrera($idFacultad: Int!, $nombre: String!, $codigo: String!, $duracionAnios: Int) {
+    crearCarrera(idFacultad: $idFacultad, nombre: $nombre, codigo: $codigo, duracionAnios: $duracionAnios) {
+      success message
+    }
+  }
+`
+
+export const EDITAR_CARRERA_MUTATION = gql`
+  mutation EditarCarrera($idCarrera: Int!, $nombre: String!, $codigo: String!, $idFacultad: Int, $duracionAnios: Int) {
+    editarCarrera(idCarrera: $idCarrera, nombre: $nombre, codigo: $codigo, idFacultad: $idFacultad, duracionAnios: $duracionAnios) {
+      success message
+    }
+  }
+`
+
+export const DESACTIVAR_CARRERA_MUTATION = gql`
+  mutation DesactivarCarrera($idCarrera: Int!) {
+    desactivarCarrera(idCarrera: $idCarrera) { success message }
+  }
+`
+
+export const ACTIVAR_CARRERA_MUTATION = gql`
+  mutation ActivarCarrera($idCarrera: Int!) {
+    activarCarrera(idCarrera: $idCarrera) { success message }
   }
 `

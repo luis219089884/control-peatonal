@@ -145,6 +145,24 @@ class UsuarioQuery:
                 data["periodo_ingreso"] = est.periodo_ingreso or ""
             except Estudiante.DoesNotExist:
                 pass
+            from accesos.models import PersonaFacultad
+            pfs = list(
+                PersonaFacultad.objects.filter(usuario=usuario, tipo_vinculo="estudiante", activo=True)
+                .select_related("facultad", "carrera")
+                .order_by("id_persona_facultad")
+            )
+            data["carreras"] = [
+                {
+                    "id_carrera": pf.carrera.id_carrera if pf.carrera else None,
+                    "carrera_nombre": pf.carrera.nombre if pf.carrera else "",
+                    "id_facultad": pf.facultad.id_facultad,
+                    "facultad_nombre": pf.facultad.nombre,
+                    "paralelo": pf.paralelo or "",
+                    "modalidad_ingreso": pf.modalidad_ingreso or "",
+                    "periodo_ingreso": pf.periodo_ingreso or "",
+                }
+                for pf in pfs
+            ]
         elif usuario.tipo_usuario == "docente":
             try:
                 doc = Docente.objects.get(usuario=usuario)
@@ -212,9 +230,11 @@ class UsuarioQuery:
 
     @strawberry.field
     def listar_carreras(
-        self, id_facultad: Optional[int] = None
+        self, id_facultad: Optional[int] = None, solo_activas: bool = True
     ) -> List[CarreraType]:
-        qs = Carrera.objects.select_related("facultad__sede").filter(activo=True)
+        qs = Carrera.objects.select_related("facultad__sede")
+        if solo_activas:
+            qs = qs.filter(activo=True)
         if id_facultad:
             qs = qs.filter(facultad__id_facultad=id_facultad)
-        return list(qs)
+        return list(qs.order_by("facultad__nombre", "nombre"))
