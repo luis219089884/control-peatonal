@@ -1,5 +1,6 @@
+import json
 import re
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import pyotp
 import strawberry
@@ -34,6 +35,103 @@ from usuarios.utils import (
 
 def _validar_email(email: str) -> bool:
     return bool(re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email))
+
+
+MAX_VINCULOS_DOCENTE = 30
+
+
+def _parse_vinculos_docente(
+    vinculos_json: Optional[str],
+) -> Tuple[List[Tuple[int, Optional[int]]], Optional[str]]:
+    """Parsea JSON de vinculaciones docente: [{id_facultad, id_carrera?}, ...]."""
+    if not vinculos_json or not vinculos_json.strip():
+        return [], "Debe registrar al menos una facultad para el docente."
+
+    try:
+        raw = json.loads(vinculos_json)
+    except json.JSONDecodeError:
+        return [], "Formato de vinculacion academica invalido."
+
+    if not isinstance(raw, list):
+        return [], "Formato de vinculacion academica invalido."
+
+    if len(raw) > MAX_VINCULOS_DOCENTE:
+        return [], f"Maximo {MAX_VINCULOS_DOCENTE} vinculaciones academicas por docente."
+
+    result: List[Tuple[int, Optional[int]]] = []
+    seen: set = set()
+
+    for item in raw:
+        if not isinstance(item, dict):
+            return [], "Formato de vinculacion academica invalido."
+        id_fac = item.get("id_facultad")
+        if not id_fac:
+            continue
+        id_car = item.get("id_carrera") or None
+        try:
+            id_fac_int = int(id_fac)
+            id_car_int = int(id_car) if id_car else None
+        except (TypeError, ValueError):
+            return [], "Facultad o carrera invalida en vinculacion academica."
+
+        key = (id_fac_int, id_car_int)
+        if key in seen:
+            return [], "Hay vinculaciones academicas duplicadas (misma facultad y carrera)."
+        seen.add(key)
+        result.append(key)
+
+    if not result:
+        return [], "Debe registrar al menos una facultad para el docente."
+
+    return result, None
+
+
+def _sync_vinculos_docente(
+    usuario: Usuario,
+    vinculos: List[Tuple[int, Optional[int]]],
+) -> Optional[str]:
+    from accesos.models import PersonaFacultad
+
+    resolved: List[Tuple[Facultad, Optional[Carrera]]] = []
+    for id_fac, id_car in vinculos:
+        try:
+            facultad = Facultad.objects.get(id_facultad=id_fac)
+        except Facultad.DoesNotExist:
+            return f"Facultad con id {id_fac} no encontrada."
+
+        carrera_obj = None
+        if id_car:
+            try:
+                carrera_obj = Carrera.objects.get(id_carrera=id_car)
+            except Carrera.DoesNotExist:
+                return f"Carrera con id {id_car} no encontrada."
+            if carrera_obj.facultad_id != facultad.id_facultad:
+                return (
+                    f"La carrera {carrera_obj.nombre} no pertenece "
+                    f"a la facultad {facultad.nombre}."
+                )
+        resolved.append((facultad, carrera_obj))
+
+    new_keys = {
+        (f.id_facultad, c.id_carrera if c else None)
+        for f, c in resolved
+    }
+
+    for pf in PersonaFacultad.objects.filter(usuario=usuario, tipo_vinculo="docente"):
+        key = (pf.facultad_id, pf.carrera_id)
+        if key not in new_keys:
+            pf.delete()
+
+    for facultad, carrera_obj in resolved:
+        PersonaFacultad.objects.get_or_create(
+            usuario=usuario,
+            facultad=facultad,
+            carrera=carrera_obj,
+            tipo_vinculo="docente",
+            defaults={"activo": True},
+        )
+
+    return None
 
 
 def _auth_vacio(**kwargs) -> AuthType:
@@ -239,6 +337,9 @@ class UsuarioMutation:
         rol: Optional[str] = None, nro_registro: Optional[str] = None,
         codigo_docente: Optional[str] = None, especialidad: Optional[str] = None,
         categoria: Optional[str] = None, codigo_admin: Optional[str] = None,
+        nivel_jerarquico_admin: Optional[str] = None,
+        codigo_direccion_admin: Optional[str] = None,
+        id_facultad_admin: Optional[int] = None,
         cargo: Optional[str] = None, area: Optional[str] = None,
         empresa: Optional[str] = None, turno: Optional[str] = None,
         id_ingreso: Optional[int] = None,
@@ -246,6 +347,7 @@ class UsuarioMutation:
         modalidad_1: Optional[str] = None, periodo_1: Optional[str] = None,
         id_carrera_2: Optional[int] = None, paralelo_2: Optional[str] = None,
         modalidad_2: Optional[str] = None, periodo_2: Optional[str] = None,
+        vinculos_docente: Optional[str] = None,
     ) -> CrearUsuarioResponseType:
         try:
             admin = get_usuario_from_info(info)
@@ -266,6 +368,11 @@ class UsuarioMutation:
                 return CrearUsuarioResponseType(ok=False, message="El número de registro es obligatorio para estudiantes.")
             if tipo_usuario == "docente" and not codigo_docente:
                 return CrearUsuarioResponseType(ok=False, message="El código de docente es obligatorio.")
+            vinculos_docente_parsed: List[Tuple[int, Optional[int]]] = []
+            if tipo_usuario == "docente":
+                vinculos_docente_parsed, err_vinc = _parse_vinculos_docente(vinculos_docente)
+                if err_vinc:
+                    return CrearUsuarioResponseType(ok=False, message=err_vinc)
             if tipo_usuario == "administrativo" and not codigo_admin:
                 return CrearUsuarioResponseType(ok=False, message="El código administrativo es obligatorio.")
             if tipo_usuario == "personal_externo" and not empresa:
@@ -331,9 +438,27 @@ class UsuarioMutation:
             elif tipo_usuario == "docente":
                 Docente.objects.create(usuario=usuario, codigo_docente=codigo_docente,
                     especialidad=especialidad, categoria=categoria)
+                err_sync = _sync_vinculos_docente(usuario, vinculos_docente_parsed)
+                if err_sync:
+                    usuario.delete()
+                    return CrearUsuarioResponseType(ok=False, message=err_sync)
             elif tipo_usuario == "administrativo":
-                Administrativo.objects.create(usuario=usuario, codigo_admin=codigo_admin,
-                    cargo=cargo, area=area)
+                fac_admin = None
+                if id_facultad_admin:
+                    try:
+                        fac_admin = Facultad.objects.get(id_facultad=id_facultad_admin)
+                    except Facultad.DoesNotExist:
+                        usuario.delete()
+                        return CrearUsuarioResponseType(ok=False, message="Facultad no encontrada para el administrativo.")
+                Administrativo.objects.create(
+                    usuario=usuario,
+                    codigo_admin=codigo_admin,
+                    nivel_jerarquico=nivel_jerarquico_admin or "apoyo_secretarial",
+                    facultad=fac_admin,
+                    codigo_direccion=codigo_direccion_admin or None,
+                    cargo=cargo,
+                    area=area,
+                )
             elif tipo_usuario == "personal_externo" and empresa:
                 try:
                     emp = EmpresaExterna.objects.get(nombre__icontains=empresa)
@@ -378,13 +503,18 @@ class UsuarioMutation:
         nro_registro: Optional[str] = None,
         codigo_docente: Optional[str] = None,
         especialidad: Optional[str] = None, categoria: Optional[str] = None,
-        codigo_admin: Optional[str] = None, cargo: Optional[str] = None,
-        area: Optional[str] = None, empresa: Optional[str] = None,
+        codigo_admin: Optional[str] = None,
+        nivel_jerarquico_admin: Optional[str] = None,
+        codigo_direccion_admin: Optional[str] = None,
+        id_facultad_admin: Optional[int] = None,
+        cargo: Optional[str] = None, area: Optional[str] = None,
+        empresa: Optional[str] = None,
         turno: Optional[str] = None, id_ingreso: Optional[int] = None,
         id_carrera_1: Optional[int] = None, paralelo_1: Optional[str] = None,
         modalidad_1: Optional[str] = None, periodo_1: Optional[str] = None,
         id_carrera_2: Optional[int] = None, paralelo_2: Optional[str] = None,
         modalidad_2: Optional[str] = None, periodo_2: Optional[str] = None,
+        vinculos_docente: Optional[str] = None,
     ) -> CrearUsuarioResponseType:
         try:
             admin = get_usuario_from_info(info)
@@ -427,6 +557,11 @@ class UsuarioMutation:
                 return CrearUsuarioResponseType(ok=False, message="El número de registro es obligatorio.")
             if tipo_usuario == "docente" and not codigo_docente:
                 return CrearUsuarioResponseType(ok=False, message="El código de docente es obligatorio.")
+            vinculos_docente_parsed: List[Tuple[int, Optional[int]]] = []
+            if tipo_usuario == "docente":
+                vinculos_docente_parsed, err_vinc = _parse_vinculos_docente(vinculos_docente)
+                if err_vinc:
+                    return CrearUsuarioResponseType(ok=False, message=err_vinc)
             if tipo_usuario == "administrativo" and not codigo_admin:
                 return CrearUsuarioResponseType(ok=False, message="El código administrativo es obligatorio.")
             if tipo_usuario == "personal_externo" and not empresa:
@@ -501,11 +636,23 @@ class UsuarioMutation:
                 doc.especialidad = especialidad
                 doc.categoria = categoria
                 doc.save()
+                err_sync = _sync_vinculos_docente(usuario, vinculos_docente_parsed)
+                if err_sync:
+                    return CrearUsuarioResponseType(ok=False, message=err_sync)
             elif tipo_usuario == "administrativo":
                 adm, _ = Administrativo.objects.get_or_create(usuario=usuario, defaults={"codigo_admin": codigo_admin})
                 if adm.codigo_admin != codigo_admin and Administrativo.objects.filter(codigo_admin=codigo_admin).exclude(pk=adm.pk).exists():
                     return CrearUsuarioResponseType(ok=False, message="Ya existe un administrativo con ese código.")
                 adm.codigo_admin = codigo_admin
+                adm.nivel_jerarquico = nivel_jerarquico_admin or adm.nivel_jerarquico
+                adm.codigo_direccion = codigo_direccion_admin or None
+                if id_facultad_admin:
+                    try:
+                        adm.facultad = Facultad.objects.get(id_facultad=id_facultad_admin)
+                    except Facultad.DoesNotExist:
+                        return CrearUsuarioResponseType(ok=False, message="Facultad no encontrada.")
+                elif id_facultad_admin == 0:
+                    adm.facultad = None
                 adm.cargo = cargo
                 adm.area = area
                 adm.save()

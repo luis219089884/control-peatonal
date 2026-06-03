@@ -131,6 +131,24 @@ export const LISTAR_CARRERAS_QUERY = gql`
   }
 `
 
+export const LISTAR_DIRECCIONES_UAGRM_QUERY = gql`
+  query ListarDireccionesUagrm {
+    listarDireccionesUagrm
+  }
+`
+
+export const LISTAR_NIVELES_ADMIN_QUERY = gql`
+  query ListarNivelesAdmin {
+    listarNivelesAdmin
+  }
+`
+
+export const MI_PERFIL_EXTENDIDO_QUERY_FULL = gql`
+  query MiPerfilExtendido {
+    miPerfilExtendido
+  }
+`
+
 export const MIS_INVITADOS_QUERY = gql`
   query MisInvitados {
     misInvitados {

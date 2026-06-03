@@ -20,6 +20,20 @@ def verify_password(password: str, hashed: str) -> bool:
     return hash_password(password) == hashed
 
 
+def usuario_puede_registrar_invitados(usuario: Usuario) -> bool:
+    """Devuelve True si el usuario tiene permiso para registrar invitados."""
+    if usuario.tipo_usuario == "docente":
+        return True
+    if usuario.tipo_usuario == "administrativo":
+        try:
+            from usuarios.models import Administrativo
+            adm = Administrativo.objects.get(usuario=usuario)
+            return adm.puede_registrar_invitados
+        except Exception:
+            return False
+    return False
+
+
 def generate_token(usuario: Usuario) -> str:
     ahora = datetime.now(tz=timezone.utc)
     payload = {
@@ -28,6 +42,7 @@ def generate_token(usuario: Usuario) -> str:
         "rol": usuario.rol.nombre,
         "nombres": usuario.nombres,
         "apellidos": usuario.apellidos,
+        "puede_registrar_invitados": usuario_puede_registrar_invitados(usuario),
         "exp": ahora + timedelta(hours=JWT_EXPIRATION_HOURS),
         "iat": ahora,
     }

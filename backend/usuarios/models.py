@@ -177,9 +177,31 @@ class Docente(models.Model):
 
 
 class Administrativo(models.Model):
+    NIVEL_CHOICES = (
+        ("autoridad_ejecutiva", "Autoridad Ejecutiva (Rector, Vicerrector, Decano, Vicedecano)"),
+        ("direccion", "Dirección / Secretaría General"),
+        ("jefatura", "Jefatura / Encargado de Unidad"),
+        ("profesional_tecnico", "Profesional Técnico (Analista, Auditor, Contador...)"),
+        ("apoyo_secretarial", "Apoyo Secretarial y Administrativo"),
+        ("operativo", "Operativo / Servicios Generales"),
+    )
+
+    # Niveles que tienen permiso de registrar invitados
+    NIVELES_CON_PERMISO = {"autoridad_ejecutiva", "direccion", "jefatura"}
+
     id_administrativo = models.AutoField(primary_key=True)
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE)
     codigo_admin = models.CharField(max_length=30, unique=True)
+    nivel_jerarquico = models.CharField(
+        max_length=30, choices=NIVEL_CHOICES,
+        default="apoyo_secretarial",
+    )
+    # Para niveles facultativos (autoridad_ejecutiva en facultad)
+    facultad = models.ForeignKey(
+        "Facultad", on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    # Para niveles centrales (direccion, jefatura)
+    codigo_direccion = models.CharField(max_length=30, null=True, blank=True)
     cargo = models.CharField(max_length=150, null=True, blank=True)
     area = models.CharField(max_length=150, null=True, blank=True)
     fecha_ingreso = models.DateField(null=True, blank=True)
@@ -189,7 +211,11 @@ class Administrativo(models.Model):
         verbose_name_plural = "Administrativos"
 
     def __str__(self) -> str:
-        return f"{self.usuario} — {self.cargo}"
+        return f"{self.usuario} — {self.cargo or self.nivel_jerarquico}"
+
+    @property
+    def puede_registrar_invitados(self) -> bool:
+        return self.nivel_jerarquico in self.NIVELES_CON_PERMISO
 
 
 class EmpresaExterna(models.Model):

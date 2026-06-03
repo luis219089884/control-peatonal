@@ -5,6 +5,7 @@ import {
   LISTAR_USUARIOS_QUERY, LISTAR_INGRESOS_QUERY,
   DETALLE_USUARIO_QUERY, LISTAR_EMPRESAS_SELECTOR_QUERY,
   LISTAR_FACULTADES_QUERY, LISTAR_CARRERAS_QUERY,
+  LISTAR_DIRECCIONES_UAGRM_QUERY, LISTAR_NIVELES_ADMIN_QUERY,
 } from '../../graphql/queries'
 import {
   CREAR_USUARIO_MUTATION,
@@ -42,7 +43,11 @@ interface FormBase {
 interface FormExt {
   nro_registro?: string;
   codigo_docente?: string; especialidad?: string; categoria?: string;
-  codigo_admin?: string; cargo?: string; area?: string;
+  codigo_admin?: string;
+  nivel_jerarquico_admin?: string;
+  codigo_direccion_admin?: string;
+  id_facultad_admin?: string;
+  cargo?: string; area?: string;
   empresa?: string; id_ingreso?: string;
 }
 interface CarreraSlot {
@@ -51,6 +56,35 @@ interface CarreraSlot {
   paralelo: string
   modalidad: string
   periodo: string
+}
+
+interface DocenteFacultadBlock {
+  id_facultad: string
+  id_carreras: string[]
+}
+
+const EMPTY_DOCENTE_FACULTAD: DocenteFacultadBlock = { id_facultad: '', id_carreras: [''] }
+const MAX_DOCENTE_FACULTADES = 5
+const MAX_CARRERAS_POR_FACULTAD = 10
+
+function vinculosToDocenteFacultades(
+  vinculos: { id_facultad: number; id_carrera?: number | null }[],
+): DocenteFacultadBlock[] {
+  const order: number[] = []
+  const map = new Map<number, string[]>()
+  for (const v of vinculos) {
+    if (!map.has(v.id_facultad)) {
+      map.set(v.id_facultad, [])
+      order.push(v.id_facultad)
+    }
+    if (v.id_carrera) {
+      map.get(v.id_facultad)!.push(String(v.id_carrera))
+    }
+  }
+  return order.map(fac => ({
+    id_facultad: String(fac),
+    id_carreras: (map.get(fac)?.length ?? 0) > 0 ? map.get(fac)! : [''],
+  }))
 }
 
 interface UsuarioRow {
@@ -84,6 +118,7 @@ function ModalUsuarioForm({
   const [carrera1, setCarrera1] = useState<CarreraSlot>(EMPTY_CARRERA)
   const [carrera2, setCarrera2] = useState<CarreraSlot>(EMPTY_CARRERA)
   const [mostrarCarrera2, setMostrarCarrera2] = useState(false)
+  const [docenteFacultades, setDocenteFacultades] = useState<DocenteFacultadBlock[]>([{ ...EMPTY_DOCENTE_FACULTAD }])
   const [error, setError] = useState('')
   const [cargandoDetalle, setCargandoDetalle] = useState(mode === 'edit')
 
@@ -106,11 +141,29 @@ function ModalUsuarioForm({
 
   // Facultades y carreras para estudiante
   const { data: facData } = useQuery(LISTAR_FACULTADES_QUERY, {
-    skip: tipo !== 'estudiante',
+    skip: tipo !== 'estudiante' && tipo !== 'docente',
     variables: { soloActivas: true },
   })
   const facultades: { idFacultad: number; nombre: string; sede: { nombre: string } }[] =
     facData?.listarFacultades ?? []
+
+  const { data: docCarData } = useQuery(LISTAR_CARRERAS_QUERY, {
+    skip: tipo !== 'docente',
+    variables: { soloActivas: true },
+  })
+  const todasCarrerasDoc: { idCarrera: number; nombre: string; facultad: { idFacultad: number } }[] =
+    docCarData?.listarCarreras ?? []
+
+  const { data: dirData } = useQuery(LISTAR_DIRECCIONES_UAGRM_QUERY, { skip: tipo !== 'administrativo' })
+  const direcciones: { codigo: string; nombre: string }[] = dirData?.listarDireccionesUagrm
+    ? JSON.parse(dirData.listarDireccionesUagrm) : []
+
+  const { data: nivelesData } = useQuery(LISTAR_NIVELES_ADMIN_QUERY, { skip: tipo !== 'administrativo' })
+  const nivelesAdmin: { valor: string; label: string; puede_invitar: boolean }[] = nivelesData?.listarNivelesAdmin
+    ? JSON.parse(nivelesData.listarNivelesAdmin) : []
+
+  const nivelSeleccionado = nivelesAdmin.find(n => n.valor === ext.nivel_jerarquico_admin)
+  const esFacultativo = ext.nivel_jerarquico_admin === 'autoridad_ejecutiva'
 
   const { data: car1Data } = useQuery(LISTAR_CARRERAS_QUERY, {
     skip: tipo !== 'estudiante' || !carrera1.id_facultad,
@@ -147,6 +200,9 @@ function ModalUsuarioForm({
         especialidad: d.especialidad || '',
         categoria: d.categoria || '',
         codigo_admin: d.codigo_admin || '',
+        nivel_jerarquico_admin: d.nivel_jerarquico_admin || 'apoyo_secretarial',
+        codigo_direccion_admin: d.codigo_direccion_admin || '',
+        id_facultad_admin: d.id_facultad_admin ? String(d.id_facultad_admin) : '',
         cargo: d.cargo || '',
         area: d.area || '',
         empresa: d.empresa || '',
@@ -173,6 +229,11 @@ function ModalUsuarioForm({
           setMostrarCarrera2(true)
         }
       }
+      if (tipo === 'docente' && d.vinculos && d.vinculos.length > 0) {
+        setDocenteFacultades(vinculosToDocenteFacultades(d.vinculos))
+      } else if (tipo === 'docente') {
+        setDocenteFacultades([{ ...EMPTY_DOCENTE_FACULTAD }])
+      }
       setCargandoDetalle(false)
     }).catch(() => {
       setError('Error al cargar los datos del usuario.')
@@ -189,6 +250,23 @@ function ModalUsuarioForm({
   }
   const setE = (k: keyof FormExt, v: string) => setExt(p => ({ ...p, [k]: v }))
 
+  const carrerasPorFacultad = (idFacultad: string) => {
+    if (!idFacultad) return []
+    return todasCarrerasDoc.filter(c => c.facultad.idFacultad === +idFacultad)
+  }
+
+  const buildVinculosDocenteJson = () => JSON.stringify(
+    docenteFacultades
+      .filter(f => f.id_facultad)
+      .flatMap(f => {
+        const carreras = f.id_carreras.filter(c => c)
+        if (carreras.length === 0) {
+          return [{ id_facultad: +f.id_facultad }]
+        }
+        return carreras.map(c => ({ id_facultad: +f.id_facultad, id_carrera: +c }))
+      })
+  )
+
   const paso1Valido = base.nombres && base.apellidos && base.ci &&
     (mode === 'edit' || (base.password && base.password.length >= 6))
 
@@ -203,8 +281,11 @@ function ModalUsuarioForm({
     codigoDocente: ext.codigo_docente || null,
     especialidad:  ext.especialidad || null,
     categoria:     ext.categoria || null,
-    codigoAdmin:   ext.codigo_admin || null,
-    cargo:         ext.cargo || null,
+    codigoAdmin:            ext.codigo_admin || null,
+    nivelJerarquicoAdmin:   ext.nivel_jerarquico_admin || null,
+    codigoDireccionAdmin:   ext.codigo_direccion_admin || null,
+    idFacultadAdmin:        ext.id_facultad_admin ? +ext.id_facultad_admin : null,
+    cargo:                  ext.cargo || null,
     area:          ext.area || null,
     empresa:       ext.empresa || null,
     idIngreso:     ext.id_ingreso ? +ext.id_ingreso : null,
@@ -216,10 +297,45 @@ function ModalUsuarioForm({
     paralelo2:     mostrarCarrera2 && carrera2.id_carrera ? (carrera2.paralelo || null) : null,
     modalidad2:    mostrarCarrera2 && carrera2.id_carrera ? (carrera2.modalidad || null) : null,
     periodo2:      mostrarCarrera2 && carrera2.id_carrera ? (carrera2.periodo || null) : null,
+    vinculosDocente: tipo === 'docente' ? buildVinculosDocenteJson() : null,
   }
 
   const handleGuardar = async () => {
     setError('')
+    if (tipo === 'docente') {
+      const filled = docenteFacultades.filter(f => f.id_facultad)
+      if (filled.length === 0) {
+        setError('Debe registrar al menos una facultad para el docente.')
+        return
+      }
+      const globalKeys = new Set<string>()
+      for (const f of filled) {
+        const carreras = f.id_carreras.filter(c => c)
+        if (carreras.length === 0) {
+          const key = `${f.id_facultad}-none`
+          if (globalKeys.has(key)) {
+            setError('Hay facultades duplicadas sin carrera específica.')
+            return
+          }
+          globalKeys.add(key)
+          continue
+        }
+        const local = new Set<string>()
+        for (const c of carreras) {
+          if (local.has(c)) {
+            setError('Hay carreras duplicadas en la misma facultad.')
+            return
+          }
+          local.add(c)
+          const key = `${f.id_facultad}-${c}`
+          if (globalKeys.has(key)) {
+            setError('Hay vinculaciones duplicadas (misma facultad y carrera).')
+            return
+          }
+          globalKeys.add(key)
+        }
+      }
+    }
     try {
       if (mode === 'create') {
         const { data } = await crearUsuario({
@@ -253,7 +369,7 @@ function ModalUsuarioForm({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className={`bg-white rounded-xl shadow-2xl w-full ${tipo === 'docente' ? 'max-w-xl' : 'max-w-lg'} max-h-[90vh] overflow-y-auto`}>
         <div className="bg-[#1a3a6b] text-white px-6 py-4 rounded-t-xl flex items-center justify-between">
           <div>
             <h3 className="font-bold text-lg">
@@ -505,6 +621,119 @@ function ModalUsuarioForm({
                         <label className="label-field">Especialidad</label>
                         <input value={ext.especialidad || ''} onChange={e => setE('especialidad', e.target.value)} className="input-field" />
                       </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-[#1a3a6b] uppercase tracking-wide">
+                            Vinculación académica *
+                          </p>
+                          <span className="text-xs text-gray-400">
+                            Mín. 1 facultad — máx. {MAX_DOCENTE_FACULTADES}
+                          </span>
+                        </div>
+
+                        {docenteFacultades.map((bloque, facIdx) => (
+                          <div key={facIdx} className="border border-indigo-100 bg-indigo-50/40 rounded-lg p-3 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-medium text-indigo-700">Facultad {facIdx + 1}</p>
+                              {docenteFacultades.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDocenteFacultades(rows => rows.filter((_, i) => i !== facIdx))}
+                                  className="text-xs text-red-500 hover:text-red-700"
+                                >
+                                  ✕ Quitar facultad
+                                </button>
+                              )}
+                            </div>
+                            <div>
+                              <label className="label-field">Facultad *</label>
+                              <select
+                                className="input-field"
+                                value={bloque.id_facultad}
+                                onChange={e => setDocenteFacultades(rows => rows.map((r, i) =>
+                                  i === facIdx ? { id_facultad: e.target.value, id_carreras: [''] } : r
+                                ))}
+                              >
+                                <option value="">— Selecciona facultad —</option>
+                                {facultades.map(f => (
+                                  <option key={f.idFacultad} value={f.idFacultad}>
+                                    {f.nombre} ({f.sede.nombre})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="space-y-2 pl-2 border-l-2 border-indigo-200">
+                              <p className="text-xs font-medium text-indigo-600">
+                                Carreras <span className="font-normal text-gray-400">(opcional, varias por facultad)</span>
+                              </p>
+                              {bloque.id_carreras.map((idCar, carIdx) => (
+                                <div key={carIdx} className="flex gap-2 items-end">
+                                  <div className="flex-1">
+                                    <select
+                                      className="input-field"
+                                      value={idCar}
+                                      onChange={e => setDocenteFacultades(rows => rows.map((r, i) =>
+                                        i === facIdx
+                                          ? {
+                                              ...r,
+                                              id_carreras: r.id_carreras.map((c, j) =>
+                                                j === carIdx ? e.target.value : c
+                                              ),
+                                            }
+                                          : r
+                                      ))}
+                                      disabled={!bloque.id_facultad}
+                                    >
+                                      <option value="">— Sin carrera específica —</option>
+                                      {carrerasPorFacultad(bloque.id_facultad)
+                                        .filter(c => !bloque.id_carreras.includes(String(c.idCarrera)) || String(c.idCarrera) === idCar)
+                                        .map(c => (
+                                          <option key={c.idCarrera} value={c.idCarrera}>{c.nombre}</option>
+                                        ))}
+                                    </select>
+                                  </div>
+                                  {bloque.id_carreras.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setDocenteFacultades(rows => rows.map((r, i) =>
+                                        i === facIdx
+                                          ? { ...r, id_carreras: r.id_carreras.filter((_, j) => j !== carIdx) }
+                                          : r
+                                      ))}
+                                      className="text-xs text-red-500 hover:text-red-700 px-2 py-2"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              {bloque.id_facultad && bloque.id_carreras.length < MAX_CARRERAS_POR_FACULTAD && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDocenteFacultades(rows => rows.map((r, i) =>
+                                    i === facIdx ? { ...r, id_carreras: [...r.id_carreras, ''] } : r
+                                  ))}
+                                  className="text-xs text-indigo-700 hover:underline"
+                                >
+                                  + Agregar carrera
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {docenteFacultades.length < MAX_DOCENTE_FACULTADES && (
+                          <button
+                            type="button"
+                            onClick={() => setDocenteFacultades(rows => [...rows, { ...EMPTY_DOCENTE_FACULTAD }])}
+                            className="text-sm text-[#1a3a6b] hover:underline"
+                          >
+                            + Agregar otra facultad
+                          </button>
+                        )}
+                      </div>
                     </>
                   )}
                   {tipo === 'administrativo' && (
@@ -516,12 +745,64 @@ function ModalUsuarioForm({
                         </div>
                         <div>
                           <label className="label-field">Cargo</label>
-                          <input value={ext.cargo || ''} onChange={e => setE('cargo', e.target.value)} className="input-field" />
+                          <input value={ext.cargo || ''} onChange={e => setE('cargo', e.target.value)} className="input-field" placeholder="Ej: Decano, Director DAEF..." />
                         </div>
                       </div>
+
                       <div>
-                        <label className="label-field">Área</label>
-                        <input value={ext.area || ''} onChange={e => setE('area', e.target.value)} className="input-field" />
+                        <label className="label-field">Nivel jerárquico *</label>
+                        <select
+                          value={ext.nivel_jerarquico_admin || ''}
+                          onChange={e => setE('nivel_jerarquico_admin', e.target.value)}
+                          className="input-field"
+                        >
+                          <option value="">— Selecciona nivel —</option>
+                          {nivelesAdmin.map(n => (
+                            <option key={n.valor} value={n.valor}>{n.label}</option>
+                          ))}
+                        </select>
+                        {nivelSeleccionado && (
+                          <p className={`text-xs mt-1 ${nivelSeleccionado.puede_invitar ? 'text-green-600' : 'text-red-500'}`}>
+                            {nivelSeleccionado.puede_invitar ? '✅ Puede registrar invitados' : '🚫 Sin permiso para registrar invitados'}
+                          </p>
+                        )}
+                      </div>
+
+                      {esFacultativo ? (
+                        <div>
+                          <label className="label-field">Facultad *</label>
+                          <select
+                            value={ext.id_facultad_admin || ''}
+                            onChange={e => setE('id_facultad_admin', e.target.value)}
+                            className="input-field"
+                          >
+                            <option value="">— Selecciona facultad —</option>
+                            {facultades.map(f => (
+                              <option key={f.idFacultad} value={f.idFacultad}>
+                                {f.nombre} ({f.sede.nombre})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="label-field">Dirección / Unidad</label>
+                          <select
+                            value={ext.codigo_direccion_admin || ''}
+                            onChange={e => setE('codigo_direccion_admin', e.target.value)}
+                            className="input-field"
+                          >
+                            <option value="">— Sin dirección específica —</option>
+                            {direcciones.map(d => (
+                              <option key={d.codigo} value={d.codigo}>{d.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="label-field">Área / Subunidad</label>
+                        <input value={ext.area || ''} onChange={e => setE('area', e.target.value)} className="input-field" placeholder="Ej: Unidad de Contabilidad" />
                       </div>
                     </>
                   )}

@@ -232,6 +232,9 @@ export const CREAR_USUARIO_MUTATION = gql`
     $especialidad: String
     $categoria: String
     $codigoAdmin: String
+    $nivelJerarquicoAdmin: String
+    $codigoDireccionAdmin: String
+    $idFacultadAdmin: Int
     $cargo: String
     $area: String
     $empresa: String
@@ -245,6 +248,7 @@ export const CREAR_USUARIO_MUTATION = gql`
     $paralelo2: String
     $modalidad2: String
     $periodo2: String
+    $vinculosDocente: String
   ) {
     crearUsuario(
       tipoUsuario: $tipoUsuario
@@ -260,6 +264,9 @@ export const CREAR_USUARIO_MUTATION = gql`
       especialidad: $especialidad
       categoria: $categoria
       codigoAdmin: $codigoAdmin
+      nivelJerarquicoAdmin: $nivelJerarquicoAdmin
+      codigoDireccionAdmin: $codigoDireccionAdmin
+      idFacultadAdmin: $idFacultadAdmin
       cargo: $cargo
       area: $area
       empresa: $empresa
@@ -273,6 +280,7 @@ export const CREAR_USUARIO_MUTATION = gql`
       paralelo2: $paralelo2
       modalidad2: $modalidad2
       periodo2: $periodo2
+      vinculosDocente: $vinculosDocente
     ) {
       ok
       message
@@ -296,6 +304,9 @@ export const ACTUALIZAR_USUARIO_MUTATION = gql`
     $especialidad: String
     $categoria: String
     $codigoAdmin: String
+    $nivelJerarquicoAdmin: String
+    $codigoDireccionAdmin: String
+    $idFacultadAdmin: Int
     $cargo: String
     $area: String
     $empresa: String
@@ -309,6 +320,7 @@ export const ACTUALIZAR_USUARIO_MUTATION = gql`
     $paralelo2: String
     $modalidad2: String
     $periodo2: String
+    $vinculosDocente: String
   ) {
     actualizarUsuario(
       idUsuario: $idUsuario
@@ -324,6 +336,9 @@ export const ACTUALIZAR_USUARIO_MUTATION = gql`
       especialidad: $especialidad
       categoria: $categoria
       codigoAdmin: $codigoAdmin
+      nivelJerarquicoAdmin: $nivelJerarquicoAdmin
+      codigoDireccionAdmin: $codigoDireccionAdmin
+      idFacultadAdmin: $idFacultadAdmin
       cargo: $cargo
       area: $area
       empresa: $empresa
@@ -337,6 +352,7 @@ export const ACTUALIZAR_USUARIO_MUTATION = gql`
       paralelo2: $paralelo2
       modalidad2: $modalidad2
       periodo2: $periodo2
+      vinculosDocente: $vinculosDocente
     ) {
       ok
       message

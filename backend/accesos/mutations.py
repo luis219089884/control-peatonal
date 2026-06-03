@@ -234,10 +234,11 @@ class AccesoMutation:
     ) -> InvitadoRegistradoType:
         try:
             usuario = get_usuario_from_info(info)
-            if usuario.tipo_usuario not in ("docente", "administrativo"):
+            from usuarios.utils import usuario_puede_registrar_invitados
+            if not usuario_puede_registrar_invitados(usuario):
                 return InvitadoRegistradoType(
                     success=False,
-                    message="Solo docentes o administrativos pueden registrar invitados.",
+                    message="No tienes permiso para registrar invitados. Solo docentes y administrativos con nivel jer?rquico autorizado pueden hacerlo.",
                     id_invitado=None, token_qr=None, expira_en=None,
                 )
             if not nombres.strip() or not apellidos.strip() or not ci.strip():

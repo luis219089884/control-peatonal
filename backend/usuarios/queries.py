@@ -44,6 +44,7 @@ class UsuarioQuery:
     @strawberry.field
     def mi_perfil_extendido(self, info) -> str:
         usuario = get_usuario_from_info(info)
+        from usuarios.utils import usuario_puede_registrar_invitados
         data: dict = {
             "id_usuario": usuario.id_usuario,
             "nombres": usuario.nombres,
@@ -51,6 +52,7 @@ class UsuarioQuery:
             "ci": usuario.ci,
             "email": usuario.email,
             "tipo_usuario": usuario.tipo_usuario,
+            "puede_registrar_invitados": usuario_puede_registrar_invitados(usuario),
         }
 
         if usuario.tipo_usuario == "estudiante":
@@ -85,12 +87,13 @@ class UsuarioQuery:
                 pass
             from accesos.models import PersonaFacultad
             pfs = PersonaFacultad.objects.filter(
-                usuario=usuario, activo=True
+                usuario=usuario, tipo_vinculo="docente", activo=True
             ).select_related("facultad__sede", "carrera")
             data["facultades"] = [
                 {
                     "facultad": pf.facultad.nombre,
                     "sede": pf.facultad.sede.nombre,
+                    "carrera": pf.carrera.nombre if pf.carrera else None,
                 }
                 for pf in pfs
             ]
@@ -171,12 +174,34 @@ class UsuarioQuery:
                 data["categoria"] = doc.categoria or ""
             except Docente.DoesNotExist:
                 pass
+            from accesos.models import PersonaFacultad
+            pfs = list(
+                PersonaFacultad.objects.filter(
+                    usuario=usuario, tipo_vinculo="docente", activo=True
+                )
+                .select_related("facultad", "carrera")
+                .order_by("id_persona_facultad")
+            )
+            data["vinculos"] = [
+                {
+                    "id_facultad": pf.facultad.id_facultad,
+                    "facultad_nombre": pf.facultad.nombre,
+                    "id_carrera": pf.carrera.id_carrera if pf.carrera else None,
+                    "carrera_nombre": pf.carrera.nombre if pf.carrera else "",
+                }
+                for pf in pfs
+            ]
         elif usuario.tipo_usuario == "administrativo":
             try:
-                adm = Administrativo.objects.get(usuario=usuario)
+                adm = Administrativo.objects.select_related("facultad").get(usuario=usuario)
                 data["codigo_admin"] = adm.codigo_admin
+                data["nivel_jerarquico_admin"] = adm.nivel_jerarquico
+                data["codigo_direccion_admin"] = adm.codigo_direccion or ""
+                data["id_facultad_admin"] = adm.facultad.id_facultad if adm.facultad else None
+                data["facultad_admin_nombre"] = adm.facultad.nombre if adm.facultad else ""
                 data["cargo"] = adm.cargo or ""
                 data["area"] = adm.area or ""
+                data["puede_registrar_invitados"] = adm.puede_registrar_invitados
             except Administrativo.DoesNotExist:
                 pass
         elif usuario.tipo_usuario == "personal_externo":
@@ -213,6 +238,42 @@ class UsuarioQuery:
         if activo is not None:
             qs = qs.filter(activo=activo)
         return [_model_to_usuario_type(u) for u in qs]
+
+    @strawberry.field
+    def listar_direcciones_uagrm(self) -> str:
+        """Lista fija de direcciones/unidades centrales de la UAGRM."""
+        DIRECCIONES = [
+            {"codigo": "RECTORIA",      "nombre": "Rectoría"},
+            {"codigo": "VICERRECTORIA", "nombre": "Vicerrectoría"},
+            {"codigo": "SEC_GRAL",      "nombre": "Secretaría General"},
+            {"codigo": "RRPPNII",       "nombre": "Relaciones Públicas, Nacionales e Internacionales"},
+            {"codigo": "DICIT",         "nombre": "Dirección de Investigación, Ciencia, Innovación y Tecnología"},
+            {"codigo": "DAEF",          "nombre": "Dirección Administrativa Económica y Financiera"},
+            {"codigo": "DH",            "nombre": "Dirección de Desarrollo Humano"},
+            {"codigo": "DTIC",          "nombre": "Dirección de Tecnología de la Información"},
+            {"codigo": "DUBS",          "nombre": "Dirección de Bienestar Social"},
+            {"codigo": "DAJ",           "nombre": "Dirección de Asesoría Jurídica"},
+            {"codigo": "CONTABILIDAD",  "nombre": "Departamento de Contabilidad"},
+            {"codigo": "PRESUPUESTO",   "nombre": "Departamento de Presupuesto"},
+            {"codigo": "PERSONAL",      "nombre": "Departamento de Personal"},
+            {"codigo": "ACTIVO_FIJO",   "nombre": "Jefatura de Activo Fijo"},
+            {"codigo": "ALMACEN",       "nombre": "Unidad de Almacén"},
+            {"codigo": "OTRO",          "nombre": "Otra unidad / dirección"},
+        ]
+        return json.dumps(DIRECCIONES, ensure_ascii=False)
+
+    @strawberry.field
+    def listar_niveles_admin(self) -> str:
+        """Lista de niveles jerárquicos administrativos con info de permiso."""
+        NIVELES = [
+            {"valor": "autoridad_ejecutiva", "label": "Autoridad Ejecutiva (Rector, Vicerrector, Decano, Vicedecano)", "puede_invitar": True},
+            {"valor": "direccion",           "label": "Dirección / Secretaría General", "puede_invitar": True},
+            {"valor": "jefatura",            "label": "Jefatura / Encargado de Unidad", "puede_invitar": True},
+            {"valor": "profesional_tecnico", "label": "Profesional Técnico (Analista, Auditor, Contador...)", "puede_invitar": False},
+            {"valor": "apoyo_secretarial",   "label": "Apoyo Secretarial y Administrativo", "puede_invitar": False},
+            {"valor": "operativo",           "label": "Operativo / Servicios Generales", "puede_invitar": False},
+        ]
+        return json.dumps(NIVELES, ensure_ascii=False)
 
     @strawberry.field
     def listar_sedes(self, info) -> List[SedeType]:

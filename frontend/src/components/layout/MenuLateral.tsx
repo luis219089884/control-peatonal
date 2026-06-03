@@ -24,13 +24,11 @@ const itemsUsuario: MenuItem[] = [
 
 export default function MenuLateral() {
   const { user, isAdmin } = useAuth()
-  const tipoUsuario = user?.tipo_usuario
 
   const items = isAdmin
     ? itemsAdmin
     : itemsUsuario.filter(item =>
-        item.to !== '/registrar-invitado' ||
-        tipoUsuario === 'docente' || tipoUsuario === 'administrativo'
+        item.to !== '/registrar-invitado' || !!user?.puede_registrar_invitados
       )
 
   return (

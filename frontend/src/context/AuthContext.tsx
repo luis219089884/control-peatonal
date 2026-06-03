@@ -8,6 +8,7 @@ export interface AuthUser {
   nombres: string
   apellidos: string
   token: string
+  puede_registrar_invitados?: boolean
 }
 
 interface AuthContextType {
@@ -50,11 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
     setUser({
-      id_usuario:   payload['id_usuario'] as number,
-      tipo_usuario: payload['tipo_usuario'] as AuthUser['tipo_usuario'],
-      rol:          payload['rol'] as AuthUser['rol'],
-      nombres:      payload['nombres'] as string,
-      apellidos:    payload['apellidos'] as string,
+      id_usuario:                payload['id_usuario'] as number,
+      tipo_usuario:              payload['tipo_usuario'] as AuthUser['tipo_usuario'],
+      rol:                       payload['rol'] as AuthUser['rol'],
+      nombres:                   payload['nombres'] as string,
+      apellidos:                 payload['apellidos'] as string,
+      puede_registrar_invitados: payload['puede_registrar_invitados'] as boolean | undefined,
       token,
     })
   }, [])

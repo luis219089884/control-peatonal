@@ -21,8 +21,9 @@ class AccesoQuery:
     def mis_invitados(self, info) -> List[InvitadoType]:
         """Devuelve todos los invitados registrados por el usuario autenticado."""
         usuario = get_usuario_from_info(info)
-        if usuario.tipo_usuario not in ("docente", "administrativo"):
-            raise Exception("Solo docentes o administrativos pueden ver sus invitados.")
+        from usuarios.utils import usuario_puede_registrar_invitados
+        if not usuario_puede_registrar_invitados(usuario):
+            raise Exception("No tienes permiso para ver invitados. Solo docentes y administrativos autorizados.")
         return list(
             Invitado.objects
             .select_related("facultad_destino__sede", "registrado_por")
