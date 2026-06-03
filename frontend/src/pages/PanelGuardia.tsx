@@ -249,54 +249,48 @@ export default function PanelGuardia() {
 
         {/* Estado 0 — Selección de tipo */}
         {estado === 'seleccion' && (
-          <div className="flex flex-col items-center gap-8 w-full max-w-xl animate-fadeIn">
+          <div className="flex flex-col items-center gap-8 w-full max-w-2xl animate-fadeIn">
 
-            {/* Branding UAGRM */}
-            <div className="text-center space-y-1">
-              <div className="flex justify-center mb-4">
-                <img
-                  src="/images/logo-uagrm.png"
-                  alt="UAGRM"
-                  className="h-20 w-20 object-contain drop-shadow-2xl"
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
-              </div>
-              <p className="text-cyan-400 text-xs font-semibold tracking-[0.3em] uppercase">
-                Universidad Autónoma
-              </p>
-              <h1 className="text-white font-extrabold text-4xl leading-tight tracking-wide drop-shadow-lg"
-                style={{ textShadow: '0 2px 20px rgba(0,220,245,0.25)' }}>
-                Gabriel René Moreno
-              </h1>
-              <div className="flex items-center justify-center gap-3 mt-2">
-                <div className="h-px flex-1 max-w-[80px] bg-gradient-to-r from-transparent to-cyan-500/60" />
-                <p className="text-white/50 text-xs tracking-widest uppercase">
+            {/* Logo horizontal oficial UAGRM */}
+            <div className="text-center w-full max-w-lg">
+              <img
+                src="/images/logo-uagrm-horizontal.png"
+                alt="Universidad Autónoma Gabriel René Moreno"
+                className="w-full max-w-md mx-auto h-auto object-contain
+                  drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+                onError={e => {
+                  (e.target as HTMLImageElement).src = 'https://www.uagrm.edu.bo/img/logo-88x707-gray.png'
+                }}
+              />
+              <div className="flex items-center justify-center gap-3 mt-3">
+                <div className="h-px flex-1 max-w-[90px] bg-gradient-to-r from-transparent to-cyan-500/50" />
+                <p className="text-white/45 text-xs tracking-[0.25em] uppercase font-medium">
                   Control Peatonal
                 </p>
-                <div className="h-px flex-1 max-w-[80px] bg-gradient-to-l from-transparent to-cyan-500/60" />
+                <div className="h-px flex-1 max-w-[90px] bg-gradient-to-l from-transparent to-cyan-500/50" />
               </div>
             </div>
 
             {/* Tarjetas de tipo */}
-            <div className="w-full space-y-3">
+            <div className="w-full space-y-4">
               <p className="text-white/40 text-xs text-center uppercase tracking-widest">
                 ¿Quién desea ingresar?
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {TIPOS.map(t => (
                   <button
                     key={t.value}
                     onClick={() => handleSeleccionarTipo(t.value)}
                     className={`bg-gradient-to-br ${t.color} backdrop-blur-sm
-                      p-5 rounded-2xl flex flex-col items-center gap-2.5
+                      py-7 px-4 rounded-2xl flex flex-col items-center gap-3
                       border ${t.border} shadow-lg
                       hover:scale-105 hover:shadow-2xl hover:brightness-110
                       active:scale-95 transition-all duration-200 group`}
                   >
-                    <span className="text-4xl group-hover:scale-110 transition-transform duration-200 drop-shadow">
+                    <span className="text-5xl group-hover:scale-110 transition-transform duration-200 drop-shadow">
                       {t.icon}
                     </span>
-                    <span className="text-white font-semibold text-sm tracking-wide drop-shadow">
+                    <span className="text-white font-bold text-base tracking-wide drop-shadow">
                       {t.label}
                     </span>
                   </button>
