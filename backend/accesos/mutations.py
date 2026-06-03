@@ -287,25 +287,32 @@ class AccesoMutation:
                 expira_en=expira_en,
             )
 
-            # Enviar email con QR al invitado
+            # Enviar email con QR ? soporta m?ltiples correos separados por coma
             from accesos.email_utils import enviar_email_invitado
             registrado_por_nombre = f"{usuario.nombres} {usuario.apellidos}"
-            email_ok = enviar_email_invitado(
-                email_destino=email.strip(),
-                nombre_invitado=f"{nombres.strip()} {apellidos.strip()}",
-                registrado_por=registrado_por_nombre,
-                facultad_destino=facultad.nombre,
-                motivo_visita=motivo_visita,
-                fecha_visita=str(fecha_visita),
-                token_hash=token_hash,
-                expira_en=expira_en,
-            )
+            destinatarios = [e.strip() for e in email.split(",") if e.strip()]
+            emails_ok = []
+            emails_fail = []
+            for dest in destinatarios:
+                ok = enviar_email_invitado(
+                    email_destino=dest,
+                    nombre_invitado=f"{nombres.strip()} {apellidos.strip()}",
+                    registrado_por=registrado_por_nombre,
+                    facultad_destino=facultad.nombre,
+                    motivo_visita=motivo_visita,
+                    fecha_visita=str(fecha_visita),
+                    token_hash=token_hash,
+                    expira_en=expira_en,
+                )
+                (emails_ok if ok else emails_fail).append(dest)
 
+            email_enviado = len(emails_ok) > 0
+            destinos_str = ", ".join(emails_ok) if emails_ok else email.strip()
             msg = f"Invitado {apellidos} {nombres} registrado correctamente."
-            if email_ok:
-                msg += f" Email enviado a {email.strip()}."
-            else:
-                msg += " (No se pudo enviar el email, pero el token fue generado.)"
+            if emails_ok:
+                msg += f" QR enviado a: {destinos_str}."
+            if emails_fail:
+                msg += f" No se pudo enviar a: {', '.join(emails_fail)}."
 
             return InvitadoRegistradoType(
                 success=True,
@@ -313,8 +320,8 @@ class AccesoMutation:
                 id_invitado=invitado.id_invitado,
                 token_qr=token_hash,
                 expira_en=expira_en,
-                email_enviado=email_ok,
-                email_destino=email.strip(),
+                email_enviado=email_enviado,
+                email_destino=destinos_str,
             )
         except Exception as e:
             return InvitadoRegistradoType(

@@ -43,6 +43,9 @@ function ModalRegistrar({
     setError('')
     if (!form.idFacultadDestino) { setError('Selecciona la facultad destino.'); return }
     if (!form.email.trim()) { setError('El email del invitado es obligatorio.'); return }
+    const emails = form.email.split(',').map(e => e.trim()).filter(Boolean)
+    const emailInvalido = emails.find(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+    if (emailInvalido) { setError(`Email inválido: ${emailInvalido}`); return }
     try {
       const { data } = await registrar({
         variables: {
@@ -80,8 +83,17 @@ function ModalRegistrar({
               <input value={form.celular} onChange={e => set('celular', e.target.value)} className="input-field" /></div>
           </div>
           <div>
-            <label className="label-field">Email * <span className="text-xs font-normal text-gray-400">(se enviará el QR aquí)</span></label>
-            <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="input-field" required placeholder="correo@ejemplo.com" />
+            <label className="label-field">
+              Email(s) * <span className="text-xs font-normal text-gray-400">(se enviará el QR — separa varios con coma)</span>
+            </label>
+            <input
+              type="text"
+              value={form.email}
+              onChange={e => set('email', e.target.value)}
+              className="input-field"
+              required
+              placeholder="correo1@gmail.com, correo2@gmail.com"
+            />
           </div>
           <div><label className="label-field">Motivo de la visita *</label>
             <input value={form.motivoVisita} onChange={e => set('motivoVisita', e.target.value)} className="input-field" required placeholder="Ej: Reunión con docente" /></div>
