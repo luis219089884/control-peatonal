@@ -100,4 +100,4 @@ EMAIL_USE_SSL = False
 EMAIL_TIMEOUT = 15
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = f"UAGRM Control Peatonal <{config('EMAIL_HOST_USER', default='')}>"
+DEFAULT_FROM_EMAIL = "UAGRM Control Peatonal <luisdavidlopezarancibia@gmail.com>"
