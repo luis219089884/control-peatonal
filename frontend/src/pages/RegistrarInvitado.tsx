@@ -135,11 +135,6 @@ function ModalConfirmCancelar({
 
 // ── Pantalla de éxito del registro ────────────────────────────────────────────
 function PantallaExito({ exito, onNuevo }: { exito: ExitoReg; onNuevo: () => void }) {
-  const [copiado, setCopiado] = useState(false)
-  const copiar = () => {
-    navigator.clipboard.writeText(exito.tokenQr)
-    setCopiado(true); setTimeout(() => setCopiado(false), 2000)
-  }
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
@@ -171,15 +166,6 @@ function PantallaExito({ exito, onNuevo }: { exito: ExitoReg; onNuevo: () => voi
             </div>
           </div>
         )}
-        <details className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
-          <summary className="px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-100 select-none">
-            🔑 Ver token de respaldo
-          </summary>
-          <div className="px-4 pb-4 pt-2 space-y-2">
-            <div className="bg-white border border-gray-200 rounded-lg p-3 font-mono text-xs text-gray-700 break-all select-all">{exito.tokenQr}</div>
-            <Button onClick={copiar} variant="secondary" size="sm">{copiado ? '✅ ¡Copiado!' : '📋 Copiar'}</Button>
-          </div>
-        </details>
         <Button onClick={onNuevo} className="w-full">Cerrar</Button>
       </div>
     </div>
