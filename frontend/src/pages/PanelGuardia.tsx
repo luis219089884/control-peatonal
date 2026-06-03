@@ -7,6 +7,7 @@ import Badge from '../components/ui/Badge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import Seguridad2FA from '../components/Seguridad2FA'
 import QrScanner from '../components/QrScanner'
+import { useAuth } from '../context/AuthContext'
 import type { ValidarQRResponse } from '../types'
 
 const TIPOS = [
@@ -31,6 +32,7 @@ export default function PanelGuardia() {
   const [filtroTipo, setFiltroTipo]       = useState('todos')
   const [filtroAcceso, setFiltroAcceso]   = useState('todos')
 
+  const { logout } = useAuth()
   const [validarQR, { loading }] = useMutation(VALIDAR_QR_MUTATION)
   const { data: panelData, loading: loadingPanel, refetch } = useQuery(MI_PANEL_GUARDIA_QUERY, {
     fetchPolicy: 'network-only',
@@ -215,6 +217,22 @@ export default function PanelGuardia() {
           </div>
 
           {/* Lista */}
+          {/* Cerrar sesión */}
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full mb-3 flex-shrink-0 flex items-center justify-center gap-2
+              bg-red-500/15 hover:bg-red-500/30 border border-red-500/30
+              text-red-300 hover:text-red-200 text-xs font-semibold
+              px-3 py-2.5 rounded-lg transition-all duration-200"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Cerrar sesión
+          </button>
+
           <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
             {registrosFiltrados.length === 0 ? (
               <div className="text-center py-10 text-white/25">
