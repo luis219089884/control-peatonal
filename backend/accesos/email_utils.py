@@ -164,7 +164,7 @@ def enviar_email_invitado(
             <div style="display:inline-block;background:#ffffff;border-radius:16px;
                         border:2px solid #1a3a6b;padding:18px;
                         box-shadow:0 4px 20px rgba(26,58,107,0.15);">
-              <img src="data:image/png;base64,{qr_base64}"
+              <img src="cid:qr_uagrm"
                    alt="Codigo QR de acceso UAGRM"
                    width="220" height="220"
                    style="display:block;border-radius:8px;" />
@@ -232,6 +232,7 @@ def enviar_email_invitado(
                 {
                     "content": qr_base64,
                     "name": "QR_Acceso_UAGRM.png",
+                    "contentId": "qr_uagrm",
                 }
             ],
         }
