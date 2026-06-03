@@ -251,9 +251,14 @@ def enviar_email_invitado(
         img_adjunta.add_header("Content-Disposition", "attachment", filename="QR_Acceso_UAGRM.png")
         msg.attach(img_adjunta)
 
-        msg.send(fail_silently=False)
+        enviados = msg.send(fail_silently=False)
+        if enviados == 0:
+            print("[EMAIL ERROR] Gmail aceptó la conexión pero no entregó el mensaje (enviados=0)")
+            return False
         return True
 
     except Exception as e:
-        print(f"[EMAIL ERROR] {e}")
+        import traceback
+        print(f"[EMAIL ERROR] {type(e).__name__}: {e}")
+        traceback.print_exc()
         return False

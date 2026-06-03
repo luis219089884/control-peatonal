@@ -150,15 +150,27 @@ function PantallaExito({ exito, onNuevo }: { exito: ExitoReg; onNuevo: () => voi
             <p className="text-sm text-gray-500">⏰ Válido hasta: {new Date(exito.expiraEn).toLocaleString('es-BO')}</p>
           </div>
         </div>
-        <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
-          <span className="text-2xl mt-0.5">📧</span>
-          <div>
-            <p className="font-semibold text-green-800 text-sm">Email enviado correctamente</p>
-            <p className="text-green-700 text-sm mt-0.5">
-              El QR fue enviado a <strong>{exito.emailDestino}</strong>. El invitado puede verlo y descargarlo desde su correo.
-            </p>
+        {exito.emailEnviado ? (
+          <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
+            <span className="text-2xl mt-0.5">📧</span>
+            <div>
+              <p className="font-semibold text-green-800 text-sm">Email enviado correctamente</p>
+              <p className="text-green-700 text-sm mt-0.5">
+                El QR fue enviado a <strong>{exito.emailDestino}</strong>. El invitado puede verlo y descargarlo desde su correo.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <span className="text-2xl mt-0.5">⚠️</span>
+            <div>
+              <p className="font-semibold text-yellow-800 text-sm">No se pudo enviar el email</p>
+              <p className="text-yellow-700 text-sm mt-0.5">
+                La invitación fue registrada correctamente. Comparte el token de respaldo manualmente con el invitado.
+              </p>
+            </div>
+          </div>
+        )}
         <details className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
           <summary className="px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer hover:bg-gray-100 select-none">
             🔑 Ver token de respaldo
