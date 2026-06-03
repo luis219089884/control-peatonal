@@ -6,7 +6,7 @@ export default function Header() {
   const { user, logout } = useAuth()
 
   return (
-    <header className="bg-[#1a3a6b] text-white px-6 py-3 flex items-center justify-between shadow-panel">
+    <header className="bg-[#1a3a6b] text-white pl-14 md:pl-6 pr-6 py-3 flex items-center justify-between shadow-panel">
       <div className="flex items-center gap-3">
         <div className="flex flex-col leading-tight">
           <span className="font-bold text-lg tracking-wide">UAGRM</span>

@@ -22,7 +22,11 @@ const itemsUsuario: MenuItem[] = [
   { to: '/cambiar-password',     label: 'Cambiar Contraseña', icon: '🔒' },
 ]
 
-export default function MenuLateral() {
+interface MenuLateralProps {
+  onNavigate?: () => void
+}
+
+export default function MenuLateral({ onNavigate }: MenuLateralProps) {
   const { user, isAdmin } = useAuth()
 
   const items = isAdmin
@@ -52,6 +56,7 @@ export default function MenuLateral() {
       <nav className="flex flex-col gap-0.5 px-3 flex-1">
         {items.map(({ to, label, icon, highlight, end }) => (
           <NavLink key={to + label} to={to} end={end}
+            onClick={onNavigate}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
                transition-all duration-200
