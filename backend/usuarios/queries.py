@@ -299,3 +299,42 @@ class UsuarioQuery:
         if id_facultad:
             qs = qs.filter(facultad__id_facultad=id_facultad)
         return list(qs.order_by("facultad__nombre", "nombre"))
+
+    @strawberry.field
+    def listar_sincronizaciones_dtic(self, info) -> str:
+        """Lista el historial de sincronizaciones con la API DTIC."""
+        admin = get_usuario_from_info(info)
+        if admin.rol.nombre != "admin":
+            raise Exception("No tienes permiso para esta acción.")
+
+        from usuarios.models import SincronizacionDTIC
+        syncs = SincronizacionDTIC.objects.select_related("iniciado_por").order_by("-iniciado_en")[:50]
+        result = []
+        for s in syncs:
+            result.append({
+                "id_sync": s.id_sync,
+                "estado": s.estado,
+                "creados": s.usuarios_creados,
+                "actualizados": s.usuarios_actualizados,
+                "omitidos": s.usuarios_omitidos,
+                "errores": s.errores_count,
+                "total": s.usuarios_creados + s.usuarios_actualizados + s.usuarios_omitidos + s.errores_count,
+                "simulado": s.api_url_usada == "SIMULADO",
+                "iniciado_en": s.iniciado_en.isoformat(),
+                "finalizado_en": s.finalizado_en.isoformat() if s.finalizado_en else None,
+                "iniciado_por": f"{s.iniciado_por.apellidos} {s.iniciado_por.nombres}" if s.iniciado_por else "Sistema",
+                "log": s.detalle.get("log", [])[:20],
+            })
+        return json.dumps(result, ensure_ascii=False)
+
+    @strawberry.field
+    def estado_dtic_api(self, info) -> str:
+        """Devuelve si la API DTIC está configurada y disponible."""
+        admin = get_usuario_from_info(info)
+        if admin.rol.nombre != "admin":
+            raise Exception("No tienes permiso.")
+        from usuarios.dtic_service import api_dtic_disponible, DTIC_API_URL
+        return json.dumps({
+            "configurada": api_dtic_disponible(),
+            "url": DTIC_API_URL if api_dtic_disponible() else None,
+        }, ensure_ascii=False)

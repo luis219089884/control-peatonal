@@ -260,3 +260,39 @@ class PersonalExterno(models.Model):
 
     def __str__(self) -> str:
         return f"{self.usuario} — {self.empresa}"
+
+
+class SincronizacionDTIC(models.Model):
+    """Registro histórico de cada sincronización con la API DTIC."""
+
+    ESTADO_CHOICES = (
+        ("exitoso",   "Exitoso"),
+        ("parcial",   "Parcial (con errores)"),
+        ("fallido",   "Fallido"),
+        ("simulado",  "Simulado (sin API real)"),
+    )
+
+    id_sync        = models.AutoField(primary_key=True)
+    iniciado_en    = models.DateTimeField(auto_now_add=True)
+    finalizado_en  = models.DateTimeField(null=True, blank=True)
+    estado         = models.CharField(max_length=20, choices=ESTADO_CHOICES, default="exitoso")
+    usuarios_creados   = models.IntegerField(default=0)
+    usuarios_actualizados = models.IntegerField(default=0)
+    usuarios_omitidos  = models.IntegerField(default=0)
+    errores_count      = models.IntegerField(default=0)
+    detalle        = models.JSONField(default=dict, blank=True)
+    iniciado_por   = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="sincronizaciones",
+    )
+    api_url_usada  = models.CharField(max_length=500, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Sincronización DTIC"
+        verbose_name_plural = "Sincronizaciones DTIC"
+        ordering = ["-iniciado_en"]
+
+    def __str__(self) -> str:
+        return f"Sync {self.id_sync} — {self.estado} — {self.iniciado_en:%Y-%m-%d %H:%M}"

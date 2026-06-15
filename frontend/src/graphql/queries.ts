@@ -176,6 +176,18 @@ export const LISTAR_REGISTROS_COMPLETO_QUERY = gql`
   }
 `
 
+export const LISTAR_SINCRONIZACIONES_DTIC_QUERY = gql`
+  query ListarSincronizacionesDtic {
+    listarSincronizacionesDtic
+  }
+`
+
+export const ESTADO_DTIC_API_QUERY = gql`
+  query EstadoDticApi {
+    estadoDticApi
+  }
+`
+
 export const MIS_INVITADOS_QUERY = gql`
   query MisInvitados {
     misInvitados {

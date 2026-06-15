@@ -93,6 +93,12 @@ export const REGISTRAR_ACCESO_MANUAL_MUTATION = gql`
   }
 `
 
+export const SINCRONIZAR_DTIC_MUTATION = gql`
+  mutation SincronizarDtic($simulado: Boolean) {
+    sincronizarDtic(simulado: $simulado)
+  }
+`
+
 export const ASIGNAR_GUARDIA_MUTATION = gql`
   mutation AsignarGuardia($idUsuario: Int!, $idIngreso: Int!, $turno: String) {
     asignarGuardia(idUsuario: $idUsuario, idIngreso: $idIngreso, turno: $turno) {

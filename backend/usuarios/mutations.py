@@ -1116,3 +1116,24 @@ class UsuarioMutation:
             return ResponseType(success=True, message=f"Carrera '{carrera.nombre}' reactivada correctamente.")
         except Exception as e:
             return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def sincronizar_dtic(self, info, simulado: bool = False) -> str:
+        """
+        Ejecuta la sincronización con la API DTIC.
+        Si simulado=True (o la API no está configurada), usa datos de prueba.
+        Retorna un JSON con el resultado de la sincronización.
+        """
+        import json
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return json.dumps({"error": "No tienes permiso para esta acción."})
+
+            from usuarios.dtic_service import ejecutar_sincronizacion, api_dtic_disponible
+            usar_simulado = simulado or not api_dtic_disponible()
+            resultado = ejecutar_sincronizacion(iniciado_por=admin, simulado=usar_simulado)
+            return json.dumps(resultado, ensure_ascii=False)
+
+        except Exception as e:
+            return json.dumps({"error": str(e)})

@@ -16,6 +16,7 @@ import Reportes from './pages/admin/Reportes'
 import Guardias from './pages/admin/Guardias'
 import Portones from './pages/admin/Portones'
 import Accesos from './pages/admin/Accesos'
+import Sincronizacion from './pages/admin/Sincronizacion'
 
 function RootRedirect() {
   const { user, isAuthenticated } = useAuth()
@@ -100,6 +101,12 @@ export default function App() {
             <Route path="/admin/accesos" element={
               <ProtectedRoute roles={['admin']}>
                 <Accesos />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/dtic" element={
+              <ProtectedRoute roles={['admin']}>
+                <Sincronizacion />
               </ProtectedRoute>
             } />
 
