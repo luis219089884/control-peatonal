@@ -13,7 +13,8 @@ class IngresoType:
     descripcion: Optional[str]
     ubicacion: Optional[str]
     activo: bool
-    facultad: FacultadType
+    sede_nombre: Optional[str]
+    facultad: Optional[FacultadType]
 
 
 @strawberry.type
@@ -47,6 +48,7 @@ class QrTokenType:
     id_token: int
     token_hash: str
     tipo_persona: str
+    tipo_movimiento: str
     generado_en: datetime
     expira_en: datetime
     usado: bool
@@ -57,6 +59,8 @@ class QrTokenType:
 class RegistroIngresoType:
     id_registro: int
     tipo_persona: str
+    tipo_movimiento: str
+    metodo: str
     nombre_completo: str
     sede_pertenece: Optional[str]
     facultad_pertenece: Optional[str]
@@ -76,6 +80,7 @@ class ValidarQRResponseType:
     sede: Optional[str]
     facultad: Optional[str]
     tipo_persona: Optional[str]
+    tipo_movimiento: Optional[str]
 
 
 @strawberry.type
@@ -84,6 +89,7 @@ class QRGeneradoType:
     expira_en: datetime
     segundos_vida: int
     tipo_persona: str
+    tipo_movimiento: str
 
 
 @strawberry.type
@@ -102,9 +108,11 @@ class GuardiaPanelType:
     nombre_completo: str
     turno: str
     horario: str
+    ingreso_id: int
     ingreso_nombre: str
     facultad_nombre: str
     sede_nombre: str
+    sede_id: int
     registros_hoy: list[RegistroIngresoType]
 
 
@@ -114,9 +122,10 @@ class IngresoConGuardiaType:
     nombre: str
     descripcion: Optional[str]
     ubicacion: Optional[str]
-    facultad_nombre: str
     sede_nombre: str
+    facultad_nombre: str
     guardia_nombre: Optional[str]
     turno: Optional[str]
     activo: bool = True
     id_facultad: int = 0
+    id_sede: int = 0

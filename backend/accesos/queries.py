@@ -14,6 +14,31 @@ from accesos.types import (
 from usuarios.utils import get_usuario_from_info
 
 
+def _ingreso_type_from_model(ing: Ingreso) -> "IngresoType":
+    from accesos.types import IngresoType
+    from accesos.utils import obtener_sede_de_ingreso
+    sede = obtener_sede_de_ingreso(ing)
+    return IngresoType(
+        id_ingreso=ing.id_ingreso,
+        nombre=ing.nombre,
+        descripcion=ing.descripcion,
+        ubicacion=ing.ubicacion,
+        activo=ing.activo,
+        sede_nombre=sede.nombre if sede else None,
+        facultad=ing.facultad if ing.facultad_id else None,
+    )
+
+
+def _select_related_registros():
+    return RegistroIngreso.objects.select_related(
+        "ingreso__sede",
+        "ingreso__facultad__sede",
+        "guardia__usuario__rol",
+        "guardia__ingreso__sede",
+        "guardia__ingreso__facultad__sede",
+    )
+
+
 @strawberry.type
 class AccesoQuery:
 
@@ -43,11 +68,7 @@ class AccesoQuery:
 
         hoy = date.today()
         return list(
-            RegistroIngreso.objects.select_related(
-                "ingreso__facultad__sede",
-                "guardia__usuario__rol",
-                "guardia__ingreso__facultad__sede",
-            ).filter(guardia=guardia, fecha_hora__date=hoy)
+            _select_related_registros().filter(guardia=guardia, fecha_hora__date=hoy)
         )
 
     @strawberry.field
@@ -57,11 +78,13 @@ class AccesoQuery:
             raise Exception("Solo los guardias pueden acceder al panel.")
         try:
             guardia = Guardia.objects.select_related(
-                "ingreso__facultad__sede"
+                "ingreso__sede",
+                "ingreso__facultad__sede",
             ).get(usuario=guardia_usuario)
         except Guardia.DoesNotExist:
             raise Exception("No se encontró guardia asociado a este usuario.")
 
+        from accesos.utils import obtener_sede_de_ingreso
         from usuarios.models import PersonalExterno
         horario = "07:00-22:00"
         try:
@@ -71,22 +94,25 @@ class AccesoQuery:
         except PersonalExterno.DoesNotExist:
             pass
 
+        sede = obtener_sede_de_ingreso(guardia.ingreso)
+        sede_nombre = sede.nombre if sede else "—"
+        sede_id = sede.id_sede if sede else 0
+        facultad_nombre = guardia.ingreso.facultad.nombre if guardia.ingreso.facultad_id else sede_nombre
+
         hoy = date.today()
         registros = list(
-            RegistroIngreso.objects.select_related(
-                "ingreso__facultad__sede",
-                "guardia__usuario__rol",
-                "guardia__ingreso__facultad__sede",
-            ).filter(guardia=guardia, fecha_hora__date=hoy)
+            _select_related_registros().filter(guardia=guardia, fecha_hora__date=hoy)
         )
 
         return GuardiaPanelType(
             nombre_completo=f"{guardia_usuario.apellidos} {guardia_usuario.nombres}",
             turno=guardia.turno,
             horario=horario,
+            ingreso_id=guardia.ingreso.id_ingreso,
             ingreso_nombre=guardia.ingreso.nombre,
-            facultad_nombre=guardia.ingreso.facultad.nombre,
-            sede_nombre=guardia.ingreso.facultad.sede.nombre,
+            facultad_nombre=facultad_nombre,
+            sede_nombre=sede_nombre,
+            sede_id=sede_id,
             registros_hoy=registros,
         )
 
@@ -96,11 +122,9 @@ class AccesoQuery:
         if usuario.rol.nombre == "guardia":
             raise Exception("Los guardias usan mis_registros_hoy.")
         return list(
-            RegistroIngreso.objects.select_related(
-                "ingreso__facultad__sede",
-                "guardia__usuario__rol",
-                "guardia__ingreso__facultad__sede",
-            ).filter(usuario=usuario).order_by("-fecha_hora")[:limite]
+            _select_related_registros()
+            .filter(usuario=usuario)
+            .order_by("-fecha_hora")[:limite]
         )
 
     @strawberry.field
@@ -109,29 +133,34 @@ class AccesoQuery:
         info,
         fecha_inicio: Optional[date] = None,
         fecha_fin: Optional[date] = None,
+        id_sede: Optional[int] = None,
         id_facultad: Optional[int] = None,
         tipo_persona: Optional[str] = None,
+        tipo_movimiento: Optional[str] = None,
+        metodo: Optional[str] = None,
     ) -> List[RegistroIngresoType]:
         admin = get_usuario_from_info(info)
         if admin.rol.nombre != "admin":
             raise Exception("No tienes permiso para esta acción.")
 
-        qs = RegistroIngreso.objects.select_related(
-            "ingreso__facultad__sede",
-            "guardia__usuario__rol",
-            "guardia__ingreso__facultad__sede",
-        ).all()
+        qs = _select_related_registros().all()
 
         if fecha_inicio:
             qs = qs.filter(fecha_hora__date__gte=fecha_inicio)
         if fecha_fin:
             qs = qs.filter(fecha_hora__date__lte=fecha_fin)
+        if id_sede:
+            qs = qs.filter(sede_acceso_id=id_sede)
         if id_facultad:
             qs = qs.filter(ingreso__facultad__id_facultad=id_facultad)
         if tipo_persona:
             qs = qs.filter(tipo_persona=tipo_persona)
+        if tipo_movimiento:
+            qs = qs.filter(tipo_movimiento=tipo_movimiento)
+        if metodo:
+            qs = qs.filter(metodo=metodo)
 
-        return list(qs.order_by("-fecha_hora"))
+        return list(qs.order_by("-fecha_hora")[:500])
 
     @strawberry.field
     def estadisticas_hoy(self, info) -> str:
@@ -143,7 +172,8 @@ class AccesoQuery:
         qs = RegistroIngreso.objects.filter(fecha_hora__date=hoy)
 
         total = qs.count()
-        permitidos = qs.filter(acceso_permitido=True).count()
+        entradas = qs.filter(tipo_movimiento="entrada", acceso_permitido=True).count()
+        salidas = qs.filter(tipo_movimiento="salida", acceso_permitido=True).count()
         rechazados = qs.filter(acceso_permitido=False).count()
 
         por_tipo: dict = {}
@@ -151,18 +181,19 @@ class AccesoQuery:
             tp = r["tipo_persona"]
             por_tipo[tp] = por_tipo.get(tp, 0) + 1
 
-        por_facultad: dict = {}
-        for r in qs.select_related("ingreso__facultad").values("ingreso__facultad__nombre"):
-            fac = r["ingreso__facultad__nombre"] or "Sin facultad"
-            por_facultad[fac] = por_facultad.get(fac, 0) + 1
+        por_sede: dict = {}
+        for r in qs.select_related("sede_acceso").values("sede_acceso__nombre"):
+            sede = r["sede_acceso__nombre"] or "Sin sede"
+            por_sede[sede] = por_sede.get(sede, 0) + 1
 
         data = {
             "fecha": str(hoy),
-            "total_ingresos": total,
-            "permitidos": permitidos,
+            "total": total,
+            "entradas": entradas,
+            "salidas": salidas,
             "rechazados": rechazados,
             "por_tipo_persona": por_tipo,
-            "por_facultad": por_facultad,
+            "por_sede": por_sede,
         }
         return json.dumps(data, ensure_ascii=False)
 
@@ -213,10 +244,12 @@ class AccesoQuery:
         if admin.rol.nombre != "admin":
             raise Exception("No tienes permiso para esta acción.")
 
-        qs = Ingreso.objects.select_related("facultad__sede")
+        qs = Ingreso.objects.select_related("sede", "facultad__sede")
         if solo_activos:
             qs = qs.filter(activo=True)
-        ingresos = qs.order_by("facultad__nombre", "nombre")
+        ingresos = qs.order_by("sede__nombre", "nombre")
+
+        from accesos.utils import obtener_sede_de_ingreso
         result = []
         for ing in ingresos:
             try:
@@ -227,16 +260,22 @@ class AccesoQuery:
                 guardia_nombre = None
                 turno = None
 
+            sede = obtener_sede_de_ingreso(ing)
+            sede_nombre = sede.nombre if sede else "—"
+            sede_id = sede.id_sede if sede else 0
+            facultad_nombre = ing.facultad.nombre if ing.facultad_id else sede_nombre
+
             result.append(IngresoConGuardiaType(
                 id_ingreso=ing.id_ingreso,
                 nombre=ing.nombre,
                 descripcion=ing.descripcion,
                 ubicacion=ing.ubicacion,
-                facultad_nombre=ing.facultad.nombre,
-                sede_nombre=ing.facultad.sede.nombre,
+                sede_nombre=sede_nombre,
+                facultad_nombre=facultad_nombre,
                 guardia_nombre=guardia_nombre,
                 turno=turno,
                 activo=ing.activo,
-                id_facultad=ing.facultad.id_facultad,
+                id_facultad=ing.facultad.id_facultad if ing.facultad_id else 0,
+                id_sede=sede_id,
             ))
         return result
