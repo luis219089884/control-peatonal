@@ -7,6 +7,7 @@ import strawberry
 from accesos.models import Guardia, Ingreso, Invitado, RegistroIngreso
 from accesos.types import (
     GuardiaPanelType,
+    GuardiaAdminType,
     IngresoConGuardiaType,
     InvitadoType,
     RegistroIngresoType,
@@ -182,18 +183,26 @@ class AccesoQuery:
             por_tipo[tp] = por_tipo.get(tp, 0) + 1
 
         por_sede: dict = {}
-        for r in qs.select_related("sede_acceso").values("sede_acceso__nombre"):
+        for r in qs.values("sede_acceso__nombre"):
             sede = r["sede_acceso__nombre"] or "Sin sede"
             por_sede[sede] = por_sede.get(sede, 0) + 1
+
+        por_metodo: dict = {}
+        for r in qs.values("metodo"):
+            m = r["metodo"] or "qr"
+            por_metodo[m] = por_metodo.get(m, 0) + 1
 
         data = {
             "fecha": str(hoy),
             "total": total,
+            "total_ingresos": total,       # alias para el dashboard
             "entradas": entradas,
             "salidas": salidas,
             "rechazados": rechazados,
+            "permitidos": entradas + salidas,
             "por_tipo_persona": por_tipo,
             "por_sede": por_sede,
+            "por_metodo": por_metodo,
         }
         return json.dumps(data, ensure_ascii=False)
 
@@ -237,6 +246,64 @@ class AccesoQuery:
             for e in qs.order_by("nombre")
         ]
         return json.dumps(result, ensure_ascii=False)
+
+    @strawberry.field
+    def listar_guardias(self, info) -> List[GuardiaAdminType]:
+        """Lista todos los guardias con su portón asignado y datos del usuario."""
+        admin = get_usuario_from_info(info)
+        if admin.rol.nombre != "admin":
+            raise Exception("No tienes permiso para esta acción.")
+
+        from usuarios.models import Usuario
+        from accesos.utils import obtener_sede_de_ingreso
+
+        guardias_asignados = Guardia.objects.select_related(
+            "usuario", "ingreso__sede", "ingreso__facultad__sede"
+        ).all()
+
+        asignados_ids = {g.usuario_id for g in guardias_asignados}
+
+        usuarios_guardia = Usuario.objects.select_related("rol").filter(
+            rol__nombre="guardia"
+        ).order_by("apellidos", "nombres")
+
+        guardia_por_usuario = {g.usuario_id: g for g in guardias_asignados}
+
+        result = []
+        for u in usuarios_guardia:
+            g = guardia_por_usuario.get(u.id_usuario)
+            if g:
+                sede = obtener_sede_de_ingreso(g.ingreso)
+                result.append(GuardiaAdminType(
+                    id_usuario=u.id_usuario,
+                    nombres=u.nombres,
+                    apellidos=u.apellidos,
+                    ci=u.ci,
+                    activo=u.activo,
+                    id_guardia=g.id_guardia,
+                    id_ingreso=g.ingreso.id_ingreso,
+                    ingreso_nombre=g.ingreso.nombre,
+                    sede_nombre=sede.nombre if sede else "—",
+                    turno=g.turno,
+                    horario=g.get_turno_display(),
+                    fecha_asignacion=str(g.fecha_asignacion),
+                ))
+            else:
+                result.append(GuardiaAdminType(
+                    id_usuario=u.id_usuario,
+                    nombres=u.nombres,
+                    apellidos=u.apellidos,
+                    ci=u.ci,
+                    activo=u.activo,
+                    id_guardia=None,
+                    id_ingreso=None,
+                    ingreso_nombre=None,
+                    sede_nombre=None,
+                    turno=None,
+                    horario=None,
+                    fecha_asignacion=None,
+                ))
+        return result
 
     @strawberry.field
     def listar_ingresos(self, info, solo_activos: bool = False) -> List[IngresoConGuardiaType]:

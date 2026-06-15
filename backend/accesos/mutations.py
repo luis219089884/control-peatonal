@@ -12,7 +12,13 @@ from accesos.models import (
     QrToken,
     RegistroIngreso,
 )
-from accesos.types import InvitadoRegistradoType, QRGeneradoType, ValidarQRResponseType
+from accesos.types import (
+    AccesoLogisticoResponseType,
+    AccesoManualResponseType,
+    InvitadoRegistradoType,
+    QRGeneradoType,
+    ValidarQRResponseType,
+)
 from usuarios.models import Administrativo, Docente, Estudiante, PersonalExterno
 from usuarios.types import ResponseType
 from usuarios.utils import get_usuario_from_info
@@ -47,7 +53,7 @@ def _rechazado(mensaje: str) -> ValidarQRResponseType:
     return ValidarQRResponseType(
         resultado="RECHAZADO",
         mensaje=mensaje,
-        nombre=None, sede=None, facultad=None, tipo_persona=None,
+        nombre=None, sede=None, facultad=None, tipo_persona=None, tipo_movimiento=None,
     )
 
 
@@ -55,12 +61,19 @@ def _rechazado(mensaje: str) -> ValidarQRResponseType:
 class AccesoMutation:
 
     @strawberry.mutation
-    def generar_qr(self, info, segundos_vida: int = 60) -> QRGeneradoType:
+    def generar_qr(
+        self,
+        info,
+        tipo_movimiento: str = "entrada",
+        segundos_vida: int = 60,
+    ) -> QRGeneradoType:
         usuario = get_usuario_from_info(info)
         if usuario.rol.nombre == "guardia":
             raise Exception("Los guardias no pueden generar QR.")
         if not usuario.activo:
             raise Exception("Usuario desactivado. Contacte al administrador.")
+        if tipo_movimiento not in ("entrada", "salida"):
+            raise Exception("Tipo de movimiento inválido. Use 'entrada' o 'salida'.")
 
         # Validar contrato vigente para personal externo
         if usuario.tipo_usuario == "personal_externo":
@@ -70,18 +83,18 @@ class AccesoMutation:
                 if not empresa.activo:
                     raise Exception("Su empresa ha sido desactivada. No puede generar QR.")
                 if not empresa.contrato_vigente:
-                    raise Exception("El contrato de su empresa no est? vigente. No puede generar QR.")
+                    raise Exception("El contrato de su empresa no está vigente. No puede generar QR.")
                 hoy = date.today()
                 if empresa.contrato_hasta and empresa.contrato_hasta < hoy:
                     raise Exception(
-                        f"El contrato de su empresa venci? el {empresa.contrato_hasta}. "
+                        f"El contrato de su empresa venció el {empresa.contrato_hasta}. "
                         "Contacte al administrador."
                     )
             except PersonalExterno.DoesNotExist:
-                raise Exception("No se encontr? registro de personal externo para su usuario.")
+                raise Exception("No se encontró registro de personal externo para su usuario.")
 
         ahora = datetime.now(tz=timezone.utc)
-        raw = f"{usuario.id_usuario}-{ahora}-{uuid4()}"
+        raw = f"{usuario.id_usuario}-{ahora}-{uuid4()}-{tipo_movimiento}"
         token_hash = hashlib.sha256(raw.encode()).hexdigest()
         expira_en = ahora + timedelta(seconds=segundos_vida)
 
@@ -89,6 +102,7 @@ class AccesoMutation:
             usuario=usuario,
             token_hash=token_hash,
             tipo_persona=usuario.tipo_usuario,
+            tipo_movimiento=tipo_movimiento,
             expira_en=expira_en,
         )
 
@@ -97,6 +111,7 @@ class AccesoMutation:
             expira_en=expira_en,
             segundos_vida=segundos_vida,
             tipo_persona=usuario.tipo_usuario,
+            tipo_movimiento=tipo_movimiento,
         )
 
     @strawberry.mutation
@@ -105,8 +120,13 @@ class AccesoMutation:
         info,
         token_hash: str,
         id_ingreso: int,
-        tipo_persona_seleccionado: str,
     ) -> ValidarQRResponseType:
+        """
+        Valida un QR escaneado por el guardia.
+        - El tipo de persona y el movimiento (entrada/salida) se leen del token.
+        - El guardia no necesita elegir el tipo de persona.
+        - Se valida el estado adentro/afuera según la sede del portón.
+        """
         try:
             guardia_usuario = get_usuario_from_info(info)
             if guardia_usuario.rol.nombre != "guardia":
@@ -115,80 +135,106 @@ class AccesoMutation:
                 return _rechazado("Guardia desactivado.")
 
             try:
-                guardia = Guardia.objects.select_related("ingreso__facultad__sede").get(
-                    usuario=guardia_usuario
-                )
+                guardia = Guardia.objects.select_related(
+                    "ingreso__sede", "ingreso__facultad__sede"
+                ).get(usuario=guardia_usuario)
             except Guardia.DoesNotExist:
-                return _rechazado("No se encontr? un guardia asociado a este usuario.")
+                return _rechazado("No se encontró un guardia asociado a este usuario.")
 
-            # Verificar que el guardia est? en el ingreso correcto
             if guardia.ingreso.id_ingreso != id_ingreso:
-                return _rechazado("No est?s asignado a esta puerta de ingreso.")
+                return _rechazado("No estás asignado a esta puerta de ingreso.")
 
             if not token_hash or not token_hash.strip():
-                return _rechazado("Token QR vac?o.")
+                return _rechazado("Código QR vacío.")
 
             try:
                 qr = QrToken.objects.select_related("usuario", "invitado").get(
                     token_hash=token_hash.strip()
                 )
             except QrToken.DoesNotExist:
-                return _rechazado("QR no reconocido. Verifique el c?digo.")
+                return _rechazado("QR no reconocido.")
 
             if qr.usado:
-                return _rechazado("Este QR ya fue utilizado anteriormente.")
+                return _rechazado("Este QR ya fue utilizado.")
 
             ahora = datetime.now(tz=timezone.utc)
             if qr.expira_en < ahora:
-                return _rechazado("QR expirado. Solicite un nuevo c?digo.")
+                return _rechazado("QR expirado. Genera un nuevo código.")
 
             try:
-                ingreso = Ingreso.objects.select_related("facultad__sede").get(
-                    id_ingreso=id_ingreso
-                )
+                ingreso = Ingreso.objects.select_related(
+                    "sede", "facultad__sede"
+                ).get(id_ingreso=id_ingreso)
             except Ingreso.DoesNotExist:
-                return _rechazado("Punto de ingreso no encontrado.")
+                return _rechazado("Punto de acceso no encontrado.")
 
-            # Datos de la persona
+            # Determinar la sede efectiva del portón
+            from accesos.utils import (
+                esta_adentro_sede,
+                esta_adentro_sede_invitado,
+                obtener_sede_de_ingreso,
+            )
+            sede_obj = obtener_sede_de_ingreso(ingreso)
+            if not sede_obj:
+                return _rechazado("Este portón no tiene sede asignada.")
+
+            tipo_movimiento = qr.tipo_movimiento  # "entrada" o "salida"
+
+            # ── Rama invitado ──────────────────────────────────────────────
             if qr.invitado:
                 inv = qr.invitado
+                if not inv.activo:
+                    return _rechazado("Acceso no válido.")
                 if inv.fecha_visita != date.today():
-                    return _rechazado("Su visita est? programada para otra fecha.")
+                    return _rechazado("Acceso no válido.")
+
+                # Validar lógica entrada/salida para invitado
+                ya_adentro = esta_adentro_sede_invitado(inv.id_invitado, sede_obj.id_sede)
+                if tipo_movimiento == "entrada" and ya_adentro:
+                    return _rechazado("Acceso no válido.")
+                if tipo_movimiento == "salida" and not ya_adentro:
+                    return _rechazado("Acceso no válido.")
+
                 nombre = f"{inv.apellidos} {inv.nombres}"
-                sede = ingreso.facultad.sede.nombre
-                facultad = inv.facultad_destino.nombre
-                carrera = ""
+                sede_nombre = sede_obj.nombre
+                facultad_nombre = inv.facultad_destino.nombre
+                carrera_nombre = ""
                 tipo = "invitado"
                 usuario_obj = None
                 invitado_obj = inv
+
+            # ── Rama usuario UAGRM ─────────────────────────────────────────
             else:
                 u = qr.usuario
                 if not u.activo:
-                    return _rechazado("El usuario ha sido desactivado.")
+                    return _rechazado("Acceso no válido.")
 
-                # Validar contrato vigente para personal externo
                 if u.tipo_usuario == "personal_externo":
                     try:
                         pe = PersonalExterno.objects.select_related("empresa").get(usuario=u)
                         empresa = pe.empresa
-                        if not empresa.activo:
-                            return _rechazado("Acceso denegado: la empresa del visitante ha sido desactivada.")
-                        if not empresa.contrato_vigente:
-                            return _rechazado("Acceso denegado: el contrato de la empresa del visitante no est? vigente.")
-                        if empresa.contrato_hasta and empresa.contrato_hasta < date.today():
-                            return _rechazado(
-                                f"Acceso denegado: el contrato de la empresa venci? el {empresa.contrato_hasta}."
-                            )
+                        hoy = date.today()
+                        if not empresa.activo or not empresa.contrato_vigente:
+                            return _rechazado("Acceso no válido.")
+                        if empresa.contrato_hasta and empresa.contrato_hasta < hoy:
+                            return _rechazado("Acceso no válido.")
                     except PersonalExterno.DoesNotExist:
-                        return _rechazado("No se encontr? registro de personal externo para este usuario.")
+                        return _rechazado("Acceso no válido.")
+
+                # Validar lógica entrada/salida
+                ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
+                if tipo_movimiento == "entrada" and ya_adentro:
+                    return _rechazado("Acceso no válido.")
+                if tipo_movimiento == "salida" and not ya_adentro:
+                    return _rechazado("Acceso no válido.")
 
                 nombre = _nombre_completo(u)
-                sede, facultad, carrera = _datos_persona(u)
+                sede_nombre, facultad_nombre, carrera_nombre = _datos_persona(u)
                 tipo = u.tipo_usuario
                 usuario_obj = u
                 invitado_obj = None
 
-            # Marcar usado
+            # ── Registrar ──────────────────────────────────────────────────
             qr.usado = True
             qr.usado_en = ahora
             qr.save()
@@ -197,23 +243,32 @@ class AccesoMutation:
                 token=qr,
                 ingreso=ingreso,
                 guardia=guardia,
+                sede_acceso=sede_obj,
                 usuario=usuario_obj,
                 invitado=invitado_obj,
                 tipo_persona=tipo,
+                tipo_movimiento=tipo_movimiento,
+                metodo="qr",
                 nombre_completo=nombre,
-                sede_pertenece=sede,
-                facultad_pertenece=facultad,
-                carrera_pertenece=carrera,
+                sede_pertenece=sede_nombre,
+                facultad_pertenece=facultad_nombre,
+                carrera_pertenece=carrera_nombre,
                 acceso_permitido=True,
             )
 
+            if tipo_movimiento == "entrada":
+                mensaje = f"Bienvenido/a, {nombre}"
+            else:
+                mensaje = f"Hasta luego, {nombre}"
+
             return ValidarQRResponseType(
                 resultado="PERMITIDO",
-                mensaje=f"Bienvenido, {nombre}",
+                mensaje=mensaje,
                 nombre=nombre,
-                sede=sede,
-                facultad=facultad,
+                sede=sede_nombre,
+                facultad=facultad_nombre,
                 tipo_persona=tipo,
+                tipo_movimiento=tipo_movimiento,
             )
         except Exception as e:
             return _rechazado(f"Error interno: {str(e)}")
@@ -353,6 +408,277 @@ class AccesoMutation:
                 success=True,
                 message=f"Invitado {invitado.apellidos} {invitado.nombres} cancelado correctamente."
             )
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def registrar_acceso_manual(
+        self,
+        info,
+        ci: str,
+        tipo_movimiento: str,
+        id_ingreso: int,
+    ) -> AccesoManualResponseType:
+        """
+        Registro manual de acceso por el guardia cuando el lector QR falla.
+        Busca al usuario por CI y registra la entrada o salida.
+        """
+        def _rechazar_manual(msg: str) -> AccesoManualResponseType:
+            return AccesoManualResponseType(
+                resultado="RECHAZADO", mensaje=msg,
+                nombre=None, ci=None, tipo_persona=None,
+                tipo_movimiento=None, sede=None, facultad=None,
+            )
+
+        try:
+            guardia_usuario = get_usuario_from_info(info)
+            if guardia_usuario.rol.nombre != "guardia":
+                return _rechazar_manual("Solo los guardias pueden usar esta función.")
+            if not guardia_usuario.activo:
+                return _rechazar_manual("Guardia desactivado.")
+
+            try:
+                guardia = Guardia.objects.select_related(
+                    "ingreso__sede", "ingreso__facultad__sede"
+                ).get(usuario=guardia_usuario)
+            except Guardia.DoesNotExist:
+                return _rechazar_manual("No se encontró un guardia asociado a este usuario.")
+
+            if guardia.ingreso.id_ingreso != id_ingreso:
+                return _rechazar_manual("No estás asignado a esta puerta de ingreso.")
+
+            if tipo_movimiento not in ("entrada", "salida"):
+                return _rechazar_manual("Tipo de movimiento inválido.")
+
+            if not ci or not ci.strip():
+                return _rechazar_manual("CI requerido.")
+
+            ci = ci.strip()
+
+            try:
+                ingreso = Ingreso.objects.select_related(
+                    "sede", "facultad__sede"
+                ).get(id_ingreso=id_ingreso)
+            except Ingreso.DoesNotExist:
+                return _rechazar_manual("Punto de acceso no encontrado.")
+
+            from accesos.utils import esta_adentro_sede, obtener_sede_de_ingreso
+            from usuarios.models import Usuario
+
+            sede_obj = obtener_sede_de_ingreso(ingreso)
+            if not sede_obj:
+                return _rechazar_manual("Este portón no tiene sede asignada.")
+
+            try:
+                u = Usuario.objects.get(ci=ci)
+            except Usuario.DoesNotExist:
+                return _rechazar_manual(f"No se encontró ningún usuario con CI {ci}.")
+
+            if not u.activo:
+                return _rechazar_manual("El usuario está desactivado.")
+
+            if u.rol.nombre == "guardia":
+                return _rechazar_manual("Acción no permitida.")
+
+            # Validar entrada/salida
+            ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
+            if tipo_movimiento == "entrada" and ya_adentro:
+                return _rechazar_manual("El usuario ya se encuentra dentro de la sede.")
+            if tipo_movimiento == "salida" and not ya_adentro:
+                return _rechazar_manual("El usuario no tiene registro de entrada en esta sede.")
+
+            nombre = _nombre_completo(u)
+            sede_nombre, facultad_nombre, carrera_nombre = _datos_persona(u)
+
+            ahora = datetime.now(tz=timezone.utc)
+            RegistroIngreso.objects.create(
+                token=None,
+                ingreso=ingreso,
+                guardia=guardia,
+                sede_acceso=sede_obj,
+                usuario=u,
+                invitado=None,
+                tipo_persona=u.tipo_usuario,
+                tipo_movimiento=tipo_movimiento,
+                metodo="manual",
+                nombre_completo=nombre,
+                sede_pertenece=sede_nombre,
+                facultad_pertenece=facultad_nombre,
+                carrera_pertenece=carrera_nombre,
+                acceso_permitido=True,
+            )
+
+            mensaje = f"Bienvenido/a, {nombre}" if tipo_movimiento == "entrada" else f"Hasta luego, {nombre}"
+            return AccesoManualResponseType(
+                resultado="PERMITIDO",
+                mensaje=mensaje,
+                nombre=nombre,
+                ci=ci,
+                tipo_persona=u.tipo_usuario,
+                tipo_movimiento=tipo_movimiento,
+                sede=sede_nombre,
+                facultad=facultad_nombre,
+            )
+        except Exception as e:
+            return AccesoManualResponseType(
+                resultado="RECHAZADO",
+                mensaje=f"Error interno: {str(e)}",
+                nombre=None, ci=None, tipo_persona=None,
+                tipo_movimiento=None, sede=None, facultad=None,
+            )
+
+    @strawberry.mutation
+    def registrar_acceso_logistico(
+        self,
+        info,
+        ci: str,
+        nombre_completo: str,
+        motivo: str,
+        tipo_movimiento: str,
+        id_ingreso: int,
+    ) -> AccesoLogisticoResponseType:
+        """
+        Registro rápido para delivery, proveedores y visitantes sin cuenta en el sistema.
+        No requiere QR ni búsqueda de usuario.
+        """
+        def _error_log(msg: str) -> AccesoLogisticoResponseType:
+            return AccesoLogisticoResponseType(
+                resultado="ERROR", mensaje=msg,
+                nombre=None, ci=None, tipo_movimiento=None,
+            )
+
+        try:
+            guardia_usuario = get_usuario_from_info(info)
+            if guardia_usuario.rol.nombre != "guardia":
+                return _error_log("Solo los guardias pueden usar esta función.")
+            if not guardia_usuario.activo:
+                return _error_log("Guardia desactivado.")
+
+            try:
+                guardia = Guardia.objects.select_related(
+                    "ingreso__sede", "ingreso__facultad__sede"
+                ).get(usuario=guardia_usuario)
+            except Guardia.DoesNotExist:
+                return _error_log("No se encontró un guardia asociado a este usuario.")
+
+            if guardia.ingreso.id_ingreso != id_ingreso:
+                return _error_log("No estás asignado a esta puerta de ingreso.")
+
+            if tipo_movimiento not in ("entrada", "salida"):
+                return _error_log("Tipo de movimiento inválido.")
+
+            if not ci.strip() or not nombre_completo.strip() or not motivo.strip():
+                return _error_log("CI, nombre y motivo son requeridos.")
+
+            try:
+                ingreso = Ingreso.objects.select_related(
+                    "sede", "facultad__sede"
+                ).get(id_ingreso=id_ingreso)
+            except Ingreso.DoesNotExist:
+                return _error_log("Punto de acceso no encontrado.")
+
+            from accesos.utils import obtener_sede_de_ingreso
+            sede_obj = obtener_sede_de_ingreso(ingreso)
+
+            RegistroIngreso.objects.create(
+                token=None,
+                ingreso=ingreso,
+                guardia=guardia,
+                sede_acceso=sede_obj,
+                usuario=None,
+                invitado=None,
+                tipo_persona="logistico",
+                tipo_movimiento=tipo_movimiento,
+                metodo="logistico",
+                nombre_completo=nombre_completo.strip(),
+                ci_logistico=ci.strip(),
+                motivo_logistico=motivo.strip(),
+                sede_pertenece=sede_obj.nombre if sede_obj else "",
+                facultad_pertenece="",
+                carrera_pertenece="",
+                acceso_permitido=True,
+            )
+
+            accion = "registrada" if tipo_movimiento == "entrada" else "registrada"
+            return AccesoLogisticoResponseType(
+                resultado="REGISTRADO",
+                mensaje=f"{tipo_movimiento.capitalize()} {accion}: {nombre_completo.strip()}",
+                nombre=nombre_completo.strip(),
+                ci=ci.strip(),
+                tipo_movimiento=tipo_movimiento,
+            )
+        except Exception as e:
+            return AccesoLogisticoResponseType(
+                resultado="ERROR",
+                mensaje=f"Error interno: {str(e)}",
+                nombre=None, ci=None, tipo_movimiento=None,
+            )
+
+    @strawberry.mutation
+    def asignar_guardia(
+        self,
+        info,
+        id_usuario: int,
+        id_ingreso: int,
+        turno: str = "jornada",
+    ) -> ResponseType:
+        """
+        Crea o actualiza la asignación de un guardia a un portón.
+        Solo admins. El turno puede ser: jornada, manana, tarde, noche.
+        """
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso.")
+
+            from usuarios.models import Usuario
+            try:
+                u = Usuario.objects.select_related("rol").get(id_usuario=id_usuario)
+            except Usuario.DoesNotExist:
+                return ResponseType(success=False, message="Usuario no encontrado.")
+
+            if u.rol.nombre != "guardia":
+                return ResponseType(success=False, message="El usuario no tiene rol de guardia.")
+
+            if turno not in ("jornada", "manana", "tarde", "noche"):
+                return ResponseType(success=False, message="Turno inválido.")
+
+            try:
+                ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
+            except Ingreso.DoesNotExist:
+                return ResponseType(success=False, message="Portón no encontrado.")
+
+            guardia, created = Guardia.objects.update_or_create(
+                usuario=u,
+                defaults={"ingreso": ingreso, "turno": turno},
+            )
+
+            accion = "asignado" if created else "actualizado"
+            return ResponseType(
+                success=True,
+                message=f"Guardia {u.apellidos} {u.nombres} {accion} al portón '{ingreso.nombre}' ({turno}).",
+            )
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def desasignar_guardia(self, info, id_usuario: int) -> ResponseType:
+        """Elimina la asignación de portón de un guardia."""
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso.")
+
+            from usuarios.models import Usuario
+            try:
+                u = Usuario.objects.select_related("rol").get(id_usuario=id_usuario)
+            except Usuario.DoesNotExist:
+                return ResponseType(success=False, message="Usuario no encontrado.")
+
+            deleted, _ = Guardia.objects.filter(usuario=u).delete()
+            if deleted:
+                return ResponseType(success=True, message=f"Asignación de {u.apellidos} {u.nombres} eliminada.")
+            return ResponseType(success=False, message="Este guardia no tenía portón asignado.")
         except Exception as e:
             return ResponseType(success=False, message=f"Error: {str(e)}")
 

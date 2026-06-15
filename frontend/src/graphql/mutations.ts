@@ -47,12 +47,13 @@ export const ACTIVAR_2FA_OBLIGATORIO_MUTATION = gql`
 `
 
 export const GENERAR_QR_MUTATION = gql`
-  mutation GenerarQR($segundosVida: Int) {
-    generarQr(segundosVida: $segundosVida) {
+  mutation GenerarQR($tipoMovimiento: String, $segundosVida: Int) {
+    generarQr(tipoMovimiento: $tipoMovimiento, segundosVida: $segundosVida) {
       token
       expiraEn
       segundosVida
       tipoPersona
+      tipoMovimiento
     }
   }
 `
@@ -61,12 +62,10 @@ export const VALIDAR_QR_MUTATION = gql`
   mutation ValidarQR(
     $tokenHash: String!
     $idIngreso: Int!
-    $tipoPersonaSeleccionado: String!
   ) {
     validarQr(
       tokenHash: $tokenHash
       idIngreso: $idIngreso
-      tipoPersonaSeleccionado: $tipoPersonaSeleccionado
     ) {
       resultado
       mensaje
@@ -74,6 +73,62 @@ export const VALIDAR_QR_MUTATION = gql`
       sede
       facultad
       tipoPersona
+      tipoMovimiento
+    }
+  }
+`
+
+export const REGISTRAR_ACCESO_MANUAL_MUTATION = gql`
+  mutation RegistrarAccesoManual($ci: String!, $tipoMovimiento: String!, $idIngreso: Int!) {
+    registrarAccesoManual(ci: $ci, tipoMovimiento: $tipoMovimiento, idIngreso: $idIngreso) {
+      resultado
+      mensaje
+      nombre
+      ci
+      tipoPersona
+      tipoMovimiento
+      sede
+      facultad
+    }
+  }
+`
+
+export const ASIGNAR_GUARDIA_MUTATION = gql`
+  mutation AsignarGuardia($idUsuario: Int!, $idIngreso: Int!, $turno: String) {
+    asignarGuardia(idUsuario: $idUsuario, idIngreso: $idIngreso, turno: $turno) {
+      success message
+    }
+  }
+`
+
+export const DESASIGNAR_GUARDIA_MUTATION = gql`
+  mutation DesasignarGuardia($idUsuario: Int!) {
+    desasignarGuardia(idUsuario: $idUsuario) {
+      success message
+    }
+  }
+`
+
+export const REGISTRAR_ACCESO_LOGISTICO_MUTATION = gql`
+  mutation RegistrarAccesoLogistico(
+    $ci: String!
+    $nombreCompleto: String!
+    $motivo: String!
+    $tipoMovimiento: String!
+    $idIngreso: Int!
+  ) {
+    registrarAccesoLogistico(
+      ci: $ci
+      nombreCompleto: $nombreCompleto
+      motivo: $motivo
+      tipoMovimiento: $tipoMovimiento
+      idIngreso: $idIngreso
+    ) {
+      resultado
+      mensaje
+      nombre
+      ci
+      tipoMovimiento
     }
   }
 `

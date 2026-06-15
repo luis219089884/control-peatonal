@@ -13,6 +13,9 @@ import { UsuariosLayout, UsuariosRedirect, UsuariosSeccion } from './pages/admin
 import Empresas from './pages/admin/Empresas'
 import Facultades from './pages/admin/Facultades'
 import Reportes from './pages/admin/Reportes'
+import Guardias from './pages/admin/Guardias'
+import Portones from './pages/admin/Portones'
+import Accesos from './pages/admin/Accesos'
 
 function RootRedirect() {
   const { user, isAuthenticated } = useAuth()
@@ -82,6 +85,21 @@ export default function App() {
             <Route path="/admin/reportes" element={
               <ProtectedRoute roles={['admin']}>
                 <Reportes />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/guardias" element={
+              <ProtectedRoute roles={['admin']}>
+                <Guardias />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/portones" element={
+              <ProtectedRoute roles={['admin']}>
+                <Portones />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/accesos" element={
+              <ProtectedRoute roles={['admin']}>
+                <Accesos />
               </ProtectedRoute>
             } />
 

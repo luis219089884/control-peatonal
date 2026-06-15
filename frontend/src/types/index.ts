@@ -96,4 +96,5 @@ export interface ValidarQRResponse {
   sede?: string
   facultad?: string
   tipoPersona?: string
+  tipoMovimiento?: string
 }

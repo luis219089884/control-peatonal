@@ -5,6 +5,9 @@ interface MenuItem { to: string; label: string; icon: string; highlight?: boolea
 
 const itemsAdmin: MenuItem[] = [
   { to: '/admin',                              label: 'Dashboard',          icon: '📊', end: true },
+  { to: '/admin/accesos',                      label: 'Accesos',            icon: '📋' },
+  { to: '/admin/guardias',                     label: 'Guardias',           icon: '👮' },
+  { to: '/admin/portones',                     label: 'Portones',           icon: '🚪' },
   { to: '/admin/usuarios/estudiantes',         label: 'Estudiantes',        icon: '🎓' },
   { to: '/admin/usuarios/docentes',            label: 'Docentes',           icon: '👨‍🏫' },
   { to: '/admin/usuarios/administrativos',     label: 'Administrativos',    icon: '🏢' },

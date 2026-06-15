@@ -104,6 +104,44 @@ class InvitadoRegistradoType:
 
 
 @strawberry.type
+class GuardiaAdminType:
+    """Vista del guardia para el panel de administración."""
+    id_usuario: int
+    nombres: str
+    apellidos: str
+    ci: str
+    activo: bool
+    id_guardia: Optional[int]
+    id_ingreso: Optional[int]
+    ingreso_nombre: Optional[str]
+    sede_nombre: Optional[str]
+    turno: Optional[str]
+    horario: Optional[str]
+    fecha_asignacion: Optional[str]
+
+
+@strawberry.type
+class AccesoManualResponseType:
+    resultado: str          # "PERMITIDO" | "RECHAZADO"
+    mensaje: str
+    nombre: Optional[str]
+    ci: Optional[str]
+    tipo_persona: Optional[str]
+    tipo_movimiento: Optional[str]
+    sede: Optional[str]
+    facultad: Optional[str]
+
+
+@strawberry.type
+class AccesoLogisticoResponseType:
+    resultado: str          # "REGISTRADO" | "ERROR"
+    mensaje: str
+    nombre: Optional[str]
+    ci: Optional[str]
+    tipo_movimiento: Optional[str]
+
+
+@strawberry.type
 class GuardiaPanelType:
     nombre_completo: str
     turno: str

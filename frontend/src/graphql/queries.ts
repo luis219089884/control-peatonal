@@ -55,9 +55,9 @@ export const MIS_REGISTROS_QUERY = gql`
 export const MI_PANEL_GUARDIA_QUERY = gql`
   query MiPanelGuardia {
     miPanelGuardia {
-      nombreCompleto turno horario ingresoNombre facultadNombre sedeNombre
+      nombreCompleto turno horario ingresoId ingresoNombre facultadNombre sedeNombre sedeId
       registrosHoy {
-        idRegistro tipoPersona nombreCompleto accesoPermitido fechaHora
+        idRegistro tipoPersona nombreCompleto accesoPermitido fechaHora tipoMovimiento metodo
         ingreso { nombre }
       }
     }
@@ -146,6 +146,33 @@ export const LISTAR_NIVELES_ADMIN_QUERY = gql`
 export const MI_PERFIL_EXTENDIDO_QUERY_FULL = gql`
   query MiPerfilExtendido {
     miPerfilExtendido
+  }
+`
+
+export const LISTAR_GUARDIAS_QUERY = gql`
+  query ListarGuardias {
+    listarGuardias {
+      idUsuario nombres apellidos ci activo
+      idGuardia idIngreso ingresoNombre sedeNombre turno horario fechaAsignacion
+    }
+  }
+`
+
+export const LISTAR_REGISTROS_COMPLETO_QUERY = gql`
+  query ListarRegistrosCompleto(
+    $fechaInicio: Date $fechaFin: Date $idFacultad: Int
+    $tipoPersona: String $tipoMovimiento: String $metodo: String $idSede: Int
+  ) {
+    listarRegistros(
+      fechaInicio: $fechaInicio fechaFin: $fechaFin
+      idFacultad: $idFacultad tipoPersona: $tipoPersona
+      tipoMovimiento: $tipoMovimiento metodo: $metodo idSede: $idSede
+    ) {
+      idRegistro nombreCompleto tipoPersona tipoMovimiento metodo
+      sedePertenece facultadPertenece accesoPermitido motivoRechazo fechaHora
+      ingreso { nombre }
+      guardia { turno usuario { nombres apellidos } }
+    }
   }
 `
 
