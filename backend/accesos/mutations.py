@@ -239,6 +239,11 @@ class AccesoMutation:
             qr.usado_en = ahora
             qr.save()
 
+            # Actualizar ya_ingreso en invitados
+            if invitado_obj and tipo_movimiento == "entrada":
+                invitado_obj.ya_ingreso = True
+                invitado_obj.save(update_fields=["ya_ingreso"])
+
             RegistroIngreso.objects.create(
                 token=qr,
                 ingreso=ingreso,
@@ -333,17 +338,31 @@ class AccesoMutation:
                 expira_en=expira_en,
             )
 
-            raw = f"inv-{invitado.id_invitado}-{datetime.now(tz=timezone.utc)}-{uuid4()}"
-            token_hash = hashlib.sha256(raw.encode()).hexdigest()
+            ahora_reg = datetime.now(tz=timezone.utc)
 
+            # Generar token de ENTRADA
+            raw_entrada = f"inv-{invitado.id_invitado}-entrada-{ahora_reg}-{uuid4()}"
+            token_entrada = hashlib.sha256(raw_entrada.encode()).hexdigest()
             QrToken.objects.create(
                 invitado=invitado,
-                token_hash=token_hash,
+                token_hash=token_entrada,
                 tipo_persona="invitado",
+                tipo_movimiento="entrada",
                 expira_en=expira_en,
             )
 
-            # Enviar email con QR ? soporta m?ltiples correos separados por coma
+            # Generar token de SALIDA
+            raw_salida = f"inv-{invitado.id_invitado}-salida-{ahora_reg}-{uuid4()}"
+            token_salida = hashlib.sha256(raw_salida.encode()).hexdigest()
+            QrToken.objects.create(
+                invitado=invitado,
+                token_hash=token_salida,
+                tipo_persona="invitado",
+                tipo_movimiento="salida",
+                expira_en=expira_en,
+            )
+
+            # Enviar email con ambos QR — soporta múltiples correos separados por coma
             from accesos.email_utils import enviar_email_invitado
             registrado_por_nombre = f"{usuario.nombres} {usuario.apellidos}"
             destinatarios = [e.strip() for e in email.split(",") if e.strip()]
@@ -357,10 +376,13 @@ class AccesoMutation:
                     facultad_destino=facultad.nombre,
                     motivo_visita=motivo_visita,
                     fecha_visita=str(fecha_visita),
-                    token_hash=token_hash,
+                    token_entrada=token_entrada,
+                    token_salida=token_salida,
                     expira_en=expira_en,
                 )
                 (emails_ok if ok else emails_fail).append(dest)
+
+            token_hash = token_entrada  # alias para el campo de retorno
 
             email_enviado = len(emails_ok) > 0
             destinos_str = ", ".join(emails_ok) if emails_ok else email.strip()
@@ -402,7 +424,7 @@ class AccesoMutation:
                 return ResponseType(success=False, message="El invitado ya ingreso, no se puede cancelar.")
             invitado.activo = False
             invitado.save(update_fields=["activo"])
-            # Invalidar el token QR asociado
+            # Invalidar AMBOS tokens QR (entrada y salida) que no se hayan usado
             QrToken.objects.filter(invitado=invitado, usado=False).update(usado=True)
             return ResponseType(
                 success=True,
