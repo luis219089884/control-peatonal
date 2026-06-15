@@ -89,7 +89,7 @@ class QRGeneradoType:
     expira_en: datetime
     segundos_vida: int
     tipo_persona: str
-    tipo_movimiento: str
+    tipo_movimiento: Optional[str]
 
 
 @strawberry.type

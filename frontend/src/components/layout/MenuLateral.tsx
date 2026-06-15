@@ -36,7 +36,9 @@ export default function MenuLateral({ onNavigate }: MenuLateralProps) {
   const items = isAdmin
     ? itemsAdmin
     : itemsUsuario.filter(item =>
-        item.to !== '/registrar-invitado' || !!user?.puede_registrar_invitados
+        item.to !== '/registrar-invitado'
+        || !!user?.puede_registrar_invitados
+        || user?.tipo_usuario === 'docente'
       )
 
   return (

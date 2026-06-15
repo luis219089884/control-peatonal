@@ -47,13 +47,12 @@ export const ACTIVAR_2FA_OBLIGATORIO_MUTATION = gql`
 `
 
 export const GENERAR_QR_MUTATION = gql`
-  mutation GenerarQR($tipoMovimiento: String, $segundosVida: Int) {
-    generarQr(tipoMovimiento: $tipoMovimiento, segundosVida: $segundosVida) {
+  mutation GenerarQR($segundosVida: Int) {
+    generarQr(segundosVida: $segundosVida) {
       token
       expiraEn
       segundosVida
       tipoPersona
-      tipoMovimiento
     }
   }
 `
@@ -79,8 +78,8 @@ export const VALIDAR_QR_MUTATION = gql`
 `
 
 export const REGISTRAR_ACCESO_MANUAL_MUTATION = gql`
-  mutation RegistrarAccesoManual($ci: String!, $tipoMovimiento: String!, $idIngreso: Int!) {
-    registrarAccesoManual(ci: $ci, tipoMovimiento: $tipoMovimiento, idIngreso: $idIngreso) {
+  mutation RegistrarAccesoManual($ci: String!, $idIngreso: Int!) {
+    registrarAccesoManual(ci: $ci, idIngreso: $idIngreso) {
       resultado
       mensaje
       nombre

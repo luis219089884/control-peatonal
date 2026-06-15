@@ -62,6 +62,20 @@ def obtener_sede_de_ingreso(ingreso) -> Optional[object]:
     return None
 
 
+def invitado_visita_completada(invitado_id: int, sede_id: int) -> bool:
+    """True si el invitado ya registró entrada y salida en la sede."""
+    from accesos.models import RegistroIngreso
+    base = RegistroIngreso.objects.filter(
+        invitado_id=invitado_id,
+        sede_acceso_id=sede_id,
+        acceso_permitido=True,
+    )
+    return (
+        base.filter(tipo_movimiento="entrada").exists()
+        and base.filter(tipo_movimiento="salida").exists()
+    )
+
+
 def tokens_invitado_usados(invitado_id: int) -> dict:
     """
     Retorna cuántos QR de entrada y salida ya fueron usados por un invitado.

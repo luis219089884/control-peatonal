@@ -63,7 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = (token: string, userData: Omit<AuthUser, 'token'>) => {
     localStorage.setItem('uagrm_token', token)
-    setUser({ ...userData, token })
+    const payload = decodeJwtPayload(token)
+    setUser({
+      ...userData,
+      id_usuario: (payload?.['id_usuario'] as number) ?? userData.id_usuario,
+      puede_registrar_invitados: payload?.['puede_registrar_invitados'] as boolean | undefined,
+      token,
+    })
   }
 
   const logout = () => {

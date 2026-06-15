@@ -44,7 +44,6 @@ function ModalManual({
   onResult: (r: ResultadoScan) => void
 }) {
   const [ci, setCi]             = useState('')
-  const [mov, setMov]           = useState<'entrada' | 'salida'>('entrada')
   const [error, setError]       = useState('')
   const inputRef                = useRef<HTMLInputElement>(null)
   const [registrar, { loading }] = useMutation(REGISTRAR_ACCESO_MANUAL_MUTATION)
@@ -57,7 +56,7 @@ function ModalManual({
     setError('')
     try {
       const { data } = await registrar({
-        variables: { ci: ci.trim(), tipoMovimiento: mov, idIngreso },
+        variables: { ci: ci.trim(), idIngreso },
       })
       const r = data?.registrarAccesoManual
       onResult({
@@ -98,36 +97,9 @@ function ModalManual({
               className="w-full bg-white/8 border border-white/15 text-white rounded-xl px-4 py-3
                 text-sm placeholder-white/25 focus:outline-none focus:border-cyan-400 transition-colors"
             />
-          </div>
-
-          <div>
-            <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wide">
-              Tipo de movimiento
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setMov('entrada')}
-                className={`py-3 rounded-xl text-sm font-semibold border transition-all
-                  ${mov === 'entrada'
-                    ? 'bg-green-500/20 border-green-400/50 text-green-300'
-                    : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30'
-                  }`}
-              >
-                🚪 Entrada
-              </button>
-              <button
-                type="button"
-                onClick={() => setMov('salida')}
-                className={`py-3 rounded-xl text-sm font-semibold border transition-all
-                  ${mov === 'salida'
-                    ? 'bg-orange-500/20 border-orange-400/50 text-orange-300'
-                    : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30'
-                  }`}
-              >
-                🏃 Salida
-              </button>
-            </div>
+            <p className="text-xs text-white/40 mt-2">
+              El sistema detecta automáticamente si es entrada o salida.
+            </p>
           </div>
 
           {error && (

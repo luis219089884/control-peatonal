@@ -64,16 +64,18 @@ class AccesoMutation:
     def generar_qr(
         self,
         info,
-        tipo_movimiento: str = "entrada",
         segundos_vida: int = 60,
     ) -> QRGeneradoType:
+        """
+        Genera un único QR de un solo uso.
+        El guardia determina entrada o salida al escanear, según si la persona
+        ya está adentro de la sede del portón.
+        """
         usuario = get_usuario_from_info(info)
         if usuario.rol.nombre == "guardia":
             raise Exception("Los guardias no pueden generar QR.")
         if not usuario.activo:
             raise Exception("Usuario desactivado. Contacte al administrador.")
-        if tipo_movimiento not in ("entrada", "salida"):
-            raise Exception("Tipo de movimiento inválido. Use 'entrada' o 'salida'.")
 
         # Validar contrato vigente para personal externo
         if usuario.tipo_usuario == "personal_externo":
@@ -94,7 +96,7 @@ class AccesoMutation:
                 raise Exception("No se encontró registro de personal externo para su usuario.")
 
         ahora = datetime.now(tz=timezone.utc)
-        raw = f"{usuario.id_usuario}-{ahora}-{uuid4()}-{tipo_movimiento}"
+        raw = f"{usuario.id_usuario}-{ahora}-{uuid4()}"
         token_hash = hashlib.sha256(raw.encode()).hexdigest()
         expira_en = ahora + timedelta(seconds=segundos_vida)
 
@@ -102,7 +104,7 @@ class AccesoMutation:
             usuario=usuario,
             token_hash=token_hash,
             tipo_persona=usuario.tipo_usuario,
-            tipo_movimiento=tipo_movimiento,
+            tipo_movimiento="entrada",  # placeholder; se resuelve al escanear
             expira_en=expira_en,
         )
 
@@ -111,7 +113,7 @@ class AccesoMutation:
             expira_en=expira_en,
             segundos_vida=segundos_vida,
             tipo_persona=usuario.tipo_usuario,
-            tipo_movimiento=tipo_movimiento,
+            tipo_movimiento=None,
         )
 
     @strawberry.mutation
@@ -154,9 +156,6 @@ class AccesoMutation:
             except QrToken.DoesNotExist:
                 return _rechazado("QR no reconocido.")
 
-            if qr.usado:
-                return _rechazado("Este QR ya fue utilizado.")
-
             ahora = datetime.now(tz=timezone.utc)
             if qr.expira_en < ahora:
                 return _rechazado("QR expirado. Genera un nuevo código.")
@@ -172,13 +171,21 @@ class AccesoMutation:
             from accesos.utils import (
                 esta_adentro_sede,
                 esta_adentro_sede_invitado,
+                invitado_visita_completada,
                 obtener_sede_de_ingreso,
             )
             sede_obj = obtener_sede_de_ingreso(ingreso)
             if not sede_obj:
                 return _rechazado("Este portón no tiene sede asignada.")
 
-            tipo_movimiento = qr.tipo_movimiento  # "entrada" o "salida"
+            es_invitado = qr.invitado_id is not None
+
+            # Invitado: el mismo QR sirve para entrar y salir (se invalida al salir).
+            # Usuario UAGRM: QR de un solo uso por generación.
+            if es_invitado and qr.usado:
+                return _rechazado("Este QR ya fue utilizado.")
+            if not es_invitado and qr.usado:
+                return _rechazado("Este QR ya fue utilizado.")
 
             # ── Rama invitado ──────────────────────────────────────────────
             if qr.invitado:
@@ -187,13 +194,11 @@ class AccesoMutation:
                     return _rechazado("Acceso no válido.")
                 if inv.fecha_visita != date.today():
                     return _rechazado("Acceso no válido.")
+                if invitado_visita_completada(inv.id_invitado, sede_obj.id_sede):
+                    return _rechazado("Acceso no válido.")
 
-                # Validar lógica entrada/salida para invitado
                 ya_adentro = esta_adentro_sede_invitado(inv.id_invitado, sede_obj.id_sede)
-                if tipo_movimiento == "entrada" and ya_adentro:
-                    return _rechazado("Acceso no válido.")
-                if tipo_movimiento == "salida" and not ya_adentro:
-                    return _rechazado("Acceso no válido.")
+                tipo_movimiento = "salida" if ya_adentro else "entrada"
 
                 nombre = f"{inv.apellidos} {inv.nombres}"
                 sede_nombre = sede_obj.nombre
@@ -221,12 +226,8 @@ class AccesoMutation:
                     except PersonalExterno.DoesNotExist:
                         return _rechazado("Acceso no válido.")
 
-                # Validar lógica entrada/salida
                 ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
-                if tipo_movimiento == "entrada" and ya_adentro:
-                    return _rechazado("Acceso no válido.")
-                if tipo_movimiento == "salida" and not ya_adentro:
-                    return _rechazado("Acceso no válido.")
+                tipo_movimiento = "salida" if ya_adentro else "entrada"
 
                 nombre = _nombre_completo(u)
                 sede_nombre, facultad_nombre, carrera_nombre = _datos_persona(u)
@@ -235,9 +236,15 @@ class AccesoMutation:
                 invitado_obj = None
 
             # ── Registrar ──────────────────────────────────────────────────
-            qr.usado = True
-            qr.usado_en = ahora
-            qr.save()
+            if es_invitado:
+                if tipo_movimiento == "salida":
+                    qr.usado = True
+                    qr.usado_en = ahora
+                    qr.save()
+            else:
+                qr.usado = True
+                qr.usado_en = ahora
+                qr.save()
 
             # Actualizar ya_ingreso en invitados
             if invitado_obj and tipo_movimiento == "entrada":
@@ -339,30 +346,18 @@ class AccesoMutation:
             )
 
             ahora_reg = datetime.now(tz=timezone.utc)
+            raw = f"inv-{invitado.id_invitado}-{ahora_reg}-{uuid4()}"
+            token_hash = hashlib.sha256(raw.encode()).hexdigest()
 
-            # Generar token de ENTRADA
-            raw_entrada = f"inv-{invitado.id_invitado}-entrada-{ahora_reg}-{uuid4()}"
-            token_entrada = hashlib.sha256(raw_entrada.encode()).hexdigest()
             QrToken.objects.create(
                 invitado=invitado,
-                token_hash=token_entrada,
+                token_hash=token_hash,
                 tipo_persona="invitado",
-                tipo_movimiento="entrada",
+                tipo_movimiento="entrada",  # placeholder; se resuelve al escanear
                 expira_en=expira_en,
             )
 
-            # Generar token de SALIDA
-            raw_salida = f"inv-{invitado.id_invitado}-salida-{ahora_reg}-{uuid4()}"
-            token_salida = hashlib.sha256(raw_salida.encode()).hexdigest()
-            QrToken.objects.create(
-                invitado=invitado,
-                token_hash=token_salida,
-                tipo_persona="invitado",
-                tipo_movimiento="salida",
-                expira_en=expira_en,
-            )
-
-            # Enviar email con ambos QR — soporta múltiples correos separados por coma
+            # Enviar email con un solo QR — soporta múltiples correos separados por coma
             from accesos.email_utils import enviar_email_invitado
             registrado_por_nombre = f"{usuario.nombres} {usuario.apellidos}"
             destinatarios = [e.strip() for e in email.split(",") if e.strip()]
@@ -376,13 +371,10 @@ class AccesoMutation:
                     facultad_destino=facultad.nombre,
                     motivo_visita=motivo_visita,
                     fecha_visita=str(fecha_visita),
-                    token_entrada=token_entrada,
-                    token_salida=token_salida,
+                    token_hash=token_hash,
                     expira_en=expira_en,
                 )
                 (emails_ok if ok else emails_fail).append(dest)
-
-            token_hash = token_entrada  # alias para el campo de retorno
 
             email_enviado = len(emails_ok) > 0
             destinos_str = ", ".join(emails_ok) if emails_ok else email.strip()
@@ -424,7 +416,7 @@ class AccesoMutation:
                 return ResponseType(success=False, message="El invitado ya ingreso, no se puede cancelar.")
             invitado.activo = False
             invitado.save(update_fields=["activo"])
-            # Invalidar AMBOS tokens QR (entrada y salida) que no se hayan usado
+            # Invalidar el QR del invitado si aún no fue usado
             QrToken.objects.filter(invitado=invitado, usado=False).update(usado=True)
             return ResponseType(
                 success=True,
@@ -438,12 +430,13 @@ class AccesoMutation:
         self,
         info,
         ci: str,
-        tipo_movimiento: str,
         id_ingreso: int,
+        tipo_movimiento: Optional[str] = None,
     ) -> AccesoManualResponseType:
         """
         Registro manual de acceso por el guardia cuando el lector QR falla.
-        Busca al usuario por CI y registra la entrada o salida.
+        Busca al usuario por CI y registra entrada o salida automáticamente
+        según si ya está adentro de la sede del portón.
         """
         def _rechazar_manual(msg: str) -> AccesoManualResponseType:
             return AccesoManualResponseType(
@@ -468,9 +461,6 @@ class AccesoMutation:
 
             if guardia.ingreso.id_ingreso != id_ingreso:
                 return _rechazar_manual("No estás asignado a esta puerta de ingreso.")
-
-            if tipo_movimiento not in ("entrada", "salida"):
-                return _rechazar_manual("Tipo de movimiento inválido.")
 
             if not ci or not ci.strip():
                 return _rechazar_manual("CI requerido.")
@@ -502,8 +492,10 @@ class AccesoMutation:
             if u.rol.nombre == "guardia":
                 return _rechazar_manual("Acción no permitida.")
 
-            # Validar entrada/salida
             ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
+            if tipo_movimiento and tipo_movimiento not in ("entrada", "salida"):
+                return _rechazar_manual("Tipo de movimiento inválido.")
+            tipo_movimiento = tipo_movimiento or ("salida" if ya_adentro else "entrada")
             if tipo_movimiento == "entrada" and ya_adentro:
                 return _rechazar_manual("El usuario ya se encuentra dentro de la sede.")
             if tipo_movimiento == "salida" and not ya_adentro:
