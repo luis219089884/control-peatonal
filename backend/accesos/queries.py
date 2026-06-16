@@ -320,35 +320,40 @@ class AccesoQuery:
         qs = Ingreso.objects.select_related("sede", "facultad__sede")
         if solo_activos:
             qs = qs.filter(activo=True)
-        ingresos = qs.order_by("sede__nombre", "nombre")
 
         from accesos.utils import obtener_sede_de_ingreso
         result = []
-        for ing in ingresos:
+        for ing in qs.order_by("nombre"):
             try:
-                g = Guardia.objects.select_related("usuario").get(ingreso=ing)
-                guardia_nombre = f"{g.usuario.apellidos} {g.usuario.nombres}"
-                turno = g.turno
-            except Guardia.DoesNotExist:
-                guardia_nombre = None
-                turno = None
+                g = (
+                    Guardia.objects
+                    .select_related("usuario")
+                    .filter(ingreso=ing)
+                    .first()
+                )
+                guardia_nombre = f"{g.usuario.apellidos} {g.usuario.nombres}" if g else None
+                turno = g.turno if g else None
 
-            sede = obtener_sede_de_ingreso(ing)
-            sede_nombre = sede.nombre if sede else "—"
-            sede_id = sede.id_sede if sede else 0
-            facultad_nombre = ing.facultad.nombre if ing.facultad_id else sede_nombre
+                sede = obtener_sede_de_ingreso(ing)
+                sede_nombre = sede.nombre if sede else "—"
+                sede_id = sede.id_sede if sede else 0
+                facultad_nombre = ing.facultad.nombre if ing.facultad_id else sede_nombre
 
-            result.append(IngresoConGuardiaType(
-                id_ingreso=ing.id_ingreso,
-                nombre=ing.nombre,
-                descripcion=ing.descripcion,
-                ubicacion=ing.ubicacion,
-                sede_nombre=sede_nombre,
-                facultad_nombre=facultad_nombre,
-                guardia_nombre=guardia_nombre,
-                turno=turno,
-                activo=ing.activo,
-                id_facultad=ing.facultad.id_facultad if ing.facultad_id else 0,
-                id_sede=sede_id,
-            ))
+                result.append(IngresoConGuardiaType(
+                    id_ingreso=ing.id_ingreso,
+                    nombre=ing.nombre,
+                    descripcion=ing.descripcion,
+                    ubicacion=ing.ubicacion,
+                    sede_nombre=sede_nombre,
+                    facultad_nombre=facultad_nombre,
+                    guardia_nombre=guardia_nombre,
+                    turno=turno,
+                    activo=ing.activo,
+                    id_facultad=ing.facultad.id_facultad if ing.facultad_id else 0,
+                    id_sede=sede_id,
+                ))
+            except Exception:
+                continue
+
+        result.sort(key=lambda x: (x.sede_nombre, x.nombre))
         return result

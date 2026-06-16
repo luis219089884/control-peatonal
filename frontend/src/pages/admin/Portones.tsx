@@ -1,16 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@apollo/client'
 import { LISTAR_INGRESOS_QUERY, LISTAR_FACULTADES_QUERY, LISTAR_SEDES_QUERY } from '../../graphql/queries'
+import { CREAR_INGRESO_MUTATION } from '../../graphql/mutations'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
-import { gql } from '@apollo/client'
-
-const CREAR_INGRESO_MUTATION = gql`
-  mutation CrearIngreso($idFacultad: Int!, $nombre: String!, $descripcion: String, $ubicacion: String) {
-    crearIngreso(idFacultad: $idFacultad, nombre: $nombre, descripcion: $descripcion, ubicacion: $ubicacion) {
-      success message
-    }
-  }
-`
 
 interface Ingreso {
   idIngreso: number
@@ -39,7 +31,7 @@ function ModalCrear({
 }: {
   facultades: Facultad[]
   onClose: () => void
-  onSave: () => void
+  onSave: () => Promise<void>
 }) {
   const [nombre, setNombre]       = useState('')
   const [idFacultad, setIdFacultad] = useState(0)
@@ -62,8 +54,10 @@ function ModalCrear({
       const { data } = await crear({
         variables: { idFacultad, nombre: nombre.trim(), descripcion: descripcion || null, ubicacion: ubicacion || null },
       })
-      if (data?.crearIngreso?.success) { onSave(); onClose() }
-      else setMsg(data?.crearIngreso?.message ?? 'Error')
+      if (data?.crearIngreso?.success) {
+        await onSave()
+        onClose()
+      } else setMsg(data?.crearIngreso?.message ?? 'Error')
     } catch (e: unknown) { setMsg((e as Error).message) }
   }
 
@@ -138,7 +132,10 @@ export default function Portones() {
   const [showCrear, setShowCrear] = useState(false)
   const [toast, setToast]       = useState('')
 
-  const { data, loading, refetch } = useQuery(LISTAR_INGRESOS_QUERY, { variables: {}, fetchPolicy: 'network-only' })
+  const { data, loading, refetch, error } = useQuery(LISTAR_INGRESOS_QUERY, {
+    variables: { soloActivos: false },
+    fetchPolicy: 'network-only',
+  })
   const { data: facData }          = useQuery(LISTAR_FACULTADES_QUERY, { variables: { soloActivas: true } })
   const { data: sedeData }         = useQuery(LISTAR_SEDES_QUERY)
 
@@ -186,6 +183,12 @@ export default function Portones() {
         </div>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+          Error al cargar portones: {error.message}
+        </div>
+      )}
+
       {/* Filtros */}
       <div className="flex gap-3 flex-wrap">
         <input
@@ -208,6 +211,11 @@ export default function Portones() {
 
       {loading ? (
         <div className="flex justify-center py-16"><LoadingSpinner text="Cargando portones..." /></div>
+      ) : error ? (
+        <div className="bg-white rounded-xl shadow-card p-10 text-center text-red-500">
+          <p className="text-3xl mb-2">⚠️</p>
+          <p>No se pudo cargar la lista. Revisa la conexión con el servidor.</p>
+        </div>
       ) : filtrados.length === 0 ? (
         <div className="bg-white rounded-xl shadow-card p-10 text-center text-gray-400">
           <p className="text-3xl mb-2">🚪</p>
@@ -265,7 +273,10 @@ export default function Portones() {
         <ModalCrear
           facultades={facultades}
           onClose={() => setShowCrear(false)}
-          onSave={() => { refetch(); showToast('Portón creado correctamente.') }}
+          onSave={async () => {
+            await refetch()
+            showToast('Portón creado correctamente.')
+          }}
         />
       )}
 

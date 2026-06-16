@@ -723,6 +723,7 @@ class AccesoMutation:
                 descripcion=descripcion,
                 ubicacion=ubicacion,
                 facultad=facultad,
+                sede=facultad.sede if facultad.sede_id else None,
             )
             return ResponseType(success=True, message=f"Puerta '{nombre}' creada correctamente.")
         except Exception as e:
