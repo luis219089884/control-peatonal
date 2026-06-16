@@ -361,11 +361,12 @@ export default function PanelGuardia() {
   }, [panel, validarQR, refetch, loading, idIngreso])
 
   const handleManualResult = async (r: ResultadoScan, metodo: 'manual' | 'logistico') => {
-    if (r.resultado === 'PERMITIDO' && r.nombre) {
+    const nombre = r.nombre?.trim()
+    if (r.resultado === 'PERMITIDO' && nombre) {
       setRegistrosLocal(prev => [{
         idRegistro: -Date.now(),
         tipoPersona: r.tipoPersona ?? (metodo === 'logistico' ? 'logistico' : 'estudiante'),
-        nombreCompleto: r.nombre,
+        nombreCompleto: nombre,
         accesoPermitido: true,
         fechaHora: new Date().toISOString(),
         tipoMovimiento: r.tipoMovimiento,
