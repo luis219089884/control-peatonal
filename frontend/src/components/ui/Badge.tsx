@@ -5,6 +5,7 @@ type TipoUsuario =
   | 'guardia'
   | 'personal_externo'
   | 'invitado'
+  | 'logistico'
 
 const colores: Record<TipoUsuario, string> = {
   estudiante:       'bg-blue-100 text-blue-800',
@@ -13,6 +14,7 @@ const colores: Record<TipoUsuario, string> = {
   guardia:          'bg-orange-100 text-orange-800',
   personal_externo: 'bg-gray-200 text-gray-700',
   invitado:         'bg-yellow-100 text-yellow-800',
+  logistico:        'bg-amber-100 text-amber-900',
 }
 
 const etiquetas: Record<TipoUsuario, string> = {
@@ -22,6 +24,7 @@ const etiquetas: Record<TipoUsuario, string> = {
   guardia:          'Guardia',
   personal_externo: 'Personal Externo',
   invitado:         'Invitado',
+  logistico:        'Logístico',
 }
 
 interface BadgeProps {
@@ -30,9 +33,10 @@ interface BadgeProps {
 }
 
 export default function Badge({ tipo, className = '' }: BadgeProps) {
+  const key = (tipo in colores ? tipo : 'personal_externo') as TipoUsuario
   return (
-    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${colores[tipo]} ${className}`}>
-      {etiquetas[tipo]}
+    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${colores[key]} ${className}`}>
+      {etiquetas[key]}
     </span>
   )
 }

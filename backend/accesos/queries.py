@@ -1,8 +1,9 @@
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 import strawberry
+from django.utils import timezone as dj_tz
 
 from accesos.models import Guardia, Ingreso, Invitado, RegistroIngreso
 from accesos.types import (
@@ -40,6 +41,17 @@ def _select_related_registros():
     )
 
 
+def _registros_hoy_qs(guardia):
+    """Registros del guardia en el día local (America/La_Paz)."""
+    inicio = dj_tz.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+    fin = inicio + timedelta(days=1)
+    return _select_related_registros().filter(
+        guardia=guardia,
+        fecha_hora__gte=inicio,
+        fecha_hora__lt=fin,
+    ).order_by("-fecha_hora")
+
+
 @strawberry.type
 class AccesoQuery:
 
@@ -67,10 +79,7 @@ class AccesoQuery:
         except Guardia.DoesNotExist:
             raise Exception("No se encontró guardia asociado a este usuario.")
 
-        hoy = date.today()
-        return list(
-            _select_related_registros().filter(guardia=guardia, fecha_hora__date=hoy)
-        )
+        return list(_registros_hoy_qs(guardia))
 
     @strawberry.field
     def mi_panel_guardia(self, info) -> GuardiaPanelType:
@@ -100,10 +109,7 @@ class AccesoQuery:
         sede_id = sede.id_sede if sede else 0
         facultad_nombre = guardia.ingreso.facultad.nombre if guardia.ingreso.facultad_id else sede_nombre
 
-        hoy = date.today()
-        registros = list(
-            _select_related_registros().filter(guardia=guardia, fecha_hora__date=hoy)
-        )
+        registros = list(_registros_hoy_qs(guardia))
 
         return GuardiaPanelType(
             nombre_completo=f"{guardia_usuario.apellidos} {guardia_usuario.nombres}",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useMutation, useQuery } from '@apollo/client'
 import {
   VALIDAR_QR_MUTATION,
@@ -28,10 +28,33 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 
 type Estado = 'listo' | 'resultado'
 
+interface RegistroHoy {
+  idRegistro: number
+  tipoPersona: string
+  nombreCompleto: string
+  accesoPermitido: boolean
+  fechaHora: string
+  tipoMovimiento?: string
+  metodo?: string
+}
+
 interface ResultadoScan extends ValidarQRResponse {
   tipoPersona?: string
   tipoMovimiento?: string
 }
+
+const INPUT_MODAL =
+  'w-full bg-[#0e1828] border border-white/30 text-white rounded-xl px-4 py-3 ' +
+  'text-base placeholder:text-white/45 focus:outline-none focus:border-cyan-400 ' +
+  'focus:ring-2 focus:ring-cyan-400/30 caret-white'
+
+const SELECT_MODAL =
+  'w-full bg-[#0e1828] border border-white/30 text-white rounded-xl px-3 py-2.5 ' +
+  'text-sm focus:outline-none focus:border-cyan-400'
+
+const SELECT_DRAWER =
+  'w-full bg-[#0e1828] text-white text-xs rounded-lg px-3 py-2.5 border border-white/25 ' +
+  'focus:outline-none focus:border-cyan-400'
 
 // ── Modal Registro Manual ─────────────────────────────────────────────────────
 function ModalManual({
@@ -41,7 +64,7 @@ function ModalManual({
 }: {
   idIngreso: number
   onClose: () => void
-  onResult: (r: ResultadoScan) => void
+  onResult: (r: ResultadoScan, metodo: 'manual' | 'logistico') => void
 }) {
   const [ci, setCi]             = useState('')
   const [error, setError]       = useState('')
@@ -67,7 +90,7 @@ function ModalManual({
         facultad: r?.facultad,
         tipoPersona: r?.tipoPersona,
         tipoMovimiento: r?.tipoMovimiento,
-      })
+      }, 'manual')
       onClose()
     } catch (e: unknown) {
       setError((e as Error).message)
@@ -76,7 +99,7 @@ function ModalManual({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-[#06101a]/97 border border-white/15 rounded-2xl shadow-2xl w-full max-w-sm animate-fadeIn">
+      <div className="bg-[#06101a]/97 border border-white/15 rounded-2xl shadow-2xl w-full max-w-sm animate-fadeIn [color-scheme:dark]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h3 className="text-white font-bold flex items-center gap-2">
             <span>⌨️</span> Registro Manual
@@ -94,9 +117,14 @@ function ModalManual({
               value={ci}
               onChange={e => setCi(e.target.value)}
               placeholder="Número de carnet de identidad"
-              className="w-full bg-white/8 border border-white/15 text-white rounded-xl px-4 py-3
-                text-sm placeholder-white/25 focus:outline-none focus:border-cyan-400 transition-colors"
+              className={INPUT_MODAL}
+              autoComplete="off"
             />
+            {ci.trim() && (
+              <p className="mt-2 text-sm text-cyan-200 bg-cyan-500/10 border border-cyan-400/25 rounded-lg px-3 py-2">
+                CI: <span className="font-mono font-semibold">{ci.trim()}</span>
+              </p>
+            )}
             <p className="text-xs text-white/40 mt-2">
               El sistema detecta automáticamente si es entrada o salida.
             </p>
@@ -133,7 +161,7 @@ function ModalLogistico({
 }: {
   idIngreso: number
   onClose: () => void
-  onResult: (r: ResultadoScan) => void
+  onResult: (r: ResultadoScan, metodo: 'manual' | 'logistico') => void
 }) {
   const [ci, setCi]           = useState('')
   const [nombre, setNombre]   = useState('')
@@ -163,7 +191,7 @@ function ModalLogistico({
         nombre: r?.nombre,
         tipoPersona: 'logistico',
         tipoMovimiento: r?.tipoMovimiento,
-      })
+      }, 'logistico')
       onClose()
     } catch (e: unknown) {
       setError((e as Error).message)
@@ -172,7 +200,7 @@ function ModalLogistico({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-[#06101a]/97 border border-white/15 rounded-2xl shadow-2xl w-full max-w-sm animate-fadeIn">
+      <div className="bg-[#06101a]/97 border border-white/15 rounded-2xl shadow-2xl w-full max-w-sm animate-fadeIn [color-scheme:dark]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h3 className="text-white font-bold flex items-center gap-2">
             <span>🚚</span> Acceso Logístico
@@ -192,8 +220,8 @@ function ModalLogistico({
                 value={ci}
                 onChange={e => setCi(e.target.value)}
                 placeholder="Carnet"
-                className="w-full bg-white/8 border border-white/15 text-white rounded-xl px-3 py-2.5
-                  text-sm placeholder-white/25 focus:outline-none focus:border-cyan-400 transition-colors"
+                className={INPUT_MODAL + ' py-2.5 text-sm'}
+                autoComplete="off"
               />
             </div>
             <div>
@@ -201,8 +229,7 @@ function ModalLogistico({
               <select
                 value={motivo}
                 onChange={e => setMotivo(e.target.value)}
-                className="w-full bg-[#06101a] border border-white/15 text-white rounded-xl px-3 py-2.5
-                  text-sm focus:outline-none focus:border-cyan-400 transition-colors"
+                className={SELECT_MODAL}
               >
                 {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
@@ -215,10 +242,18 @@ function ModalLogistico({
               value={nombre}
               onChange={e => setNombre(e.target.value)}
               placeholder="Apellidos y nombres"
-              className="w-full bg-white/8 border border-white/15 text-white rounded-xl px-4 py-3
-                text-sm placeholder-white/25 focus:outline-none focus:border-cyan-400 transition-colors"
+              className={INPUT_MODAL}
+              autoComplete="off"
             />
           </div>
+
+          {(ci.trim() || nombre.trim()) && (
+            <div className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-400/25 rounded-lg px-3 py-2 space-y-1">
+              {ci.trim() && <p>CI: <span className="font-mono font-semibold">{ci.trim()}</span></p>}
+              {nombre.trim() && <p>Nombre: <span className="font-semibold">{nombre.trim()}</span></p>}
+              <p>Motivo: <span className="font-semibold">{motivo}</span></p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -277,6 +312,7 @@ export default function PanelGuardia() {
   const [filtroTipo, setFiltroTipo]       = useState('todos')
   const [filtroAcceso, setFiltroAcceso]   = useState('todos')
   const [filtroMov, setFiltroMov]         = useState('todos')
+  const [registrosLocal, setRegistrosLocal] = useState<RegistroHoy[]>([])
 
   const { logout } = useAuth()
   const [validarQR, { loading }] = useMutation(VALIDAR_QR_MUTATION)
@@ -284,9 +320,15 @@ export default function PanelGuardia() {
     fetchPolicy: 'network-only',
   })
 
-  const panel     = panelData?.miPanelGuardia
-  const registros = panel?.registrosHoy ?? []
+  const panel = panelData?.miPanelGuardia
   const idIngreso = panel?.ingresoId ?? 1
+
+  const registros = useMemo(() => {
+    const server: RegistroHoy[] = panel?.registrosHoy ?? []
+    const ids = new Set(server.map(r => r.idRegistro))
+    const locales = registrosLocal.filter(r => !ids.has(r.idRegistro))
+    return [...locales, ...server]
+  }, [panel?.registrosHoy, registrosLocal])
 
   const now      = new Date()
   const fechaHoy = `${DIAS[now.getDay()]} ${now.getDate()} de ${MESES[now.getMonth()]} ${now.getFullYear()}`
@@ -311,17 +353,28 @@ export default function PanelGuardia() {
         tipoMovimiento: r?.tipoMovimiento ?? '',
       })
       setEstado('resultado')
-      refetch()
+      await refetch()
     } catch (e: unknown) {
       setResultado({ resultado: 'ERROR', mensaje: (e as Error).message })
       setEstado('resultado')
     }
   }, [panel, validarQR, refetch, loading, idIngreso])
 
-  const handleManualResult = (r: ResultadoScan) => {
+  const handleManualResult = async (r: ResultadoScan, metodo: 'manual' | 'logistico') => {
+    if (r.resultado === 'PERMITIDO' && r.nombre) {
+      setRegistrosLocal(prev => [{
+        idRegistro: -Date.now(),
+        tipoPersona: r.tipoPersona ?? (metodo === 'logistico' ? 'logistico' : 'estudiante'),
+        nombreCompleto: r.nombre,
+        accesoPermitido: true,
+        fechaHora: new Date().toISOString(),
+        tipoMovimiento: r.tipoMovimiento,
+        metodo,
+      }, ...prev])
+    }
     setResultado(r)
     setEstado('resultado')
-    refetch()
+    await refetch()
   }
 
   const entradas  = registros.filter((r: { tipoMovimiento?: string; accesoPermitido: boolean }) => r.accesoPermitido && r.tipoMovimiento === 'entrada').length
@@ -374,7 +427,7 @@ export default function PanelGuardia() {
       {/* ── Drawer lateral ── */}
       <aside className={`fixed top-0 left-0 h-full w-80 z-50 flex flex-col
         bg-[#04080c]/96 backdrop-blur-2xl border-r border-white/10 shadow-2xl
-        transition-transform duration-300 ease-in-out
+        transition-transform duration-300 ease-in-out [color-scheme:dark]
         ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
         <div className="bg-white/5 px-5 py-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
@@ -435,37 +488,27 @@ export default function PanelGuardia() {
 
           <div className="space-y-2 mb-3 flex-shrink-0">
             <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-              className="w-full bg-white/8 text-white/80 text-xs rounded-lg px-3 py-2 border border-white/15 focus:outline-none focus:border-cyan-400 transition-colors">
-              <option value="todos" className="bg-[#04080c]">Todos los tipos</option>
-              {TIPOS.map(t => <option key={t.value} value={t.value} className="bg-[#04080c]">{t.label}</option>)}
+              className={SELECT_DRAWER}>
+              <option value="todos">Todos los tipos</option>
+              {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             <div className="grid grid-cols-2 gap-2">
               <select value={filtroAcceso} onChange={e => setFiltroAcceso(e.target.value)}
-                className="w-full bg-white/8 text-white/80 text-xs rounded-lg px-3 py-2 border border-white/15 focus:outline-none focus:border-cyan-400 transition-colors">
-                <option value="todos" className="bg-[#04080c]">Todos</option>
-                <option value="permitido" className="bg-[#04080c]">OK ✅</option>
-                <option value="rechazado" className="bg-[#04080c]">Neg ❌</option>
+                className={SELECT_DRAWER}>
+                <option value="todos">Todos</option>
+                <option value="permitido">OK ✅</option>
+                <option value="rechazado">Neg ❌</option>
               </select>
               <select value={filtroMov} onChange={e => setFiltroMov(e.target.value)}
-                className="w-full bg-white/8 text-white/80 text-xs rounded-lg px-3 py-2 border border-white/15 focus:outline-none focus:border-cyan-400 transition-colors">
-                <option value="todos" className="bg-[#04080c]">Movim.</option>
-                <option value="entrada" className="bg-[#04080c]">🚪 Entrada</option>
-                <option value="salida" className="bg-[#04080c]">🏃 Salida</option>
+                className={SELECT_DRAWER}>
+                <option value="todos">Movim.</option>
+                <option value="entrada">🚪 Entrada</option>
+                <option value="salida">🏃 Salida</option>
               </select>
             </div>
           </div>
 
-          <button type="button" onClick={logout}
-            className="w-full mb-3 flex-shrink-0 flex items-center justify-center gap-2
-              bg-red-500/15 hover:bg-red-500/30 border border-red-500/30
-              text-red-300 hover:text-red-200 text-xs font-semibold px-3 py-2.5 rounded-lg transition-all duration-200">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Cerrar sesión
-          </button>
-
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 min-h-0">
             {registrosFiltrados.length === 0 ? (
               <div className="text-center py-10 text-white/25">
                 <p className="text-2xl mb-2">📋</p>
@@ -494,6 +537,16 @@ export default function PanelGuardia() {
               ))
             )}
           </div>
+
+          <button type="button" onClick={logout}
+            className="w-full mt-3 flex-shrink-0 flex items-center justify-center gap-2
+              bg-red-500/15 hover:bg-red-500/30 border border-red-500/30
+              text-red-300 hover:text-red-200 text-xs font-semibold px-3 py-2.5 rounded-lg transition-all duration-200">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Cerrar sesión
+          </button>
         </div>
       </aside>
 
