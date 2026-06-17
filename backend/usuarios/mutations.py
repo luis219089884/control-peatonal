@@ -391,7 +391,7 @@ class UsuarioMutation:
                 )
             if nombre_rol == "guardia":
                 if not id_ingreso:
-                    return CrearUsuarioResponseType(ok=False, message="La puerta de ingreso es obligatoria para guardias.")
+                    return CrearUsuarioResponseType(ok=False, message="El portón de ingreso es obligatorio para guardias.")
 
             if Usuario.objects.filter(ci=ci.strip(), tipo_usuario=tipo_usuario).exists():
                 return CrearUsuarioResponseType(ok=False, message=f"Ya existe un usuario {tipo_usuario} con ese CI.")
@@ -478,7 +478,7 @@ class UsuarioMutation:
                             ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
                         except Ingreso.DoesNotExist:
                             usuario.delete()
-                            return CrearUsuarioResponseType(ok=False, message="Puerta de ingreso no encontrada.")
+                            return CrearUsuarioResponseType(ok=False, message="Portón de ingreso no encontrado.")
                         Guardia.objects.create(
                             usuario=usuario,
                             ingreso=ingreso,
@@ -551,7 +551,7 @@ class UsuarioMutation:
                 )
             if nombre_rol == "guardia":
                 if not id_ingreso:
-                    return CrearUsuarioResponseType(ok=False, message="La puerta de ingreso es obligatoria para guardias.")
+                    return CrearUsuarioResponseType(ok=False, message="El portón de ingreso es obligatorio para guardias.")
 
             if tipo_usuario == "estudiante" and not nro_registro:
                 return CrearUsuarioResponseType(ok=False, message="El número de registro es obligatorio.")
@@ -677,7 +677,7 @@ class UsuarioMutation:
                     try:
                         ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
                     except Ingreso.DoesNotExist:
-                        return CrearUsuarioResponseType(ok=False, message="Puerta de ingreso no encontrada.")
+                        return CrearUsuarioResponseType(ok=False, message="Portón de ingreso no encontrado.")
                     g, _ = Guardia.objects.get_or_create(
                         usuario=usuario,
                         defaults={"ingreso": ingreso, "turno": Guardia.TURNO_DEFAULT},
@@ -946,7 +946,7 @@ class UsuarioMutation:
         except Exception as e:
             return ResponseType(success=False, message=f"Error: {str(e)}")
 
-    # ─── Ingresos / Puertas ───────────────────────────────────────────────────
+    # ─── Ingresos / Portones ──────────────────────────────────────────────────
 
     @strawberry.mutation
     def editar_ingreso(
@@ -958,22 +958,23 @@ class UsuarioMutation:
             if admin.rol.nombre != "admin":
                 return ResponseType(success=False, message="No tienes permiso para esta acción.")
             from accesos.models import Ingreso
+            from accesos.utils import normalizar_nombre_porton
             try:
                 ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
             except Ingreso.DoesNotExist:
-                return ResponseType(success=False, message="Puerta de ingreso no encontrada.")
+                return ResponseType(success=False, message="Portón no encontrado.")
             if not nombre.strip():
                 return ResponseType(success=False, message="El nombre es requerido.")
             try:
                 facultad = Facultad.objects.get(id_facultad=id_facultad)
             except Facultad.DoesNotExist:
                 return ResponseType(success=False, message="Facultad no encontrada.")
-            ingreso.nombre = nombre.strip()
+            ingreso.nombre = normalizar_nombre_porton(nombre)
             ingreso.facultad = facultad
             ingreso.descripcion = descripcion or None
             ingreso.ubicacion = ubicacion or None
             ingreso.save()
-            return ResponseType(success=True, message=f"Puerta '{ingreso.nombre}' actualizada correctamente.")
+            return ResponseType(success=True, message=f"Portón '{ingreso.nombre}' actualizado correctamente.")
         except Exception as e:
             return ResponseType(success=False, message=f"Error: {str(e)}")
 
@@ -987,10 +988,10 @@ class UsuarioMutation:
             try:
                 ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
             except Ingreso.DoesNotExist:
-                return ResponseType(success=False, message="Puerta no encontrada.")
+                return ResponseType(success=False, message="Portón no encontrado.")
             ingreso.activo = False
             ingreso.save()
-            return ResponseType(success=True, message=f"Puerta '{ingreso.nombre}' desactivada.")
+            return ResponseType(success=True, message=f"Portón '{ingreso.nombre}' desactivado.")
         except Exception as e:
             return ResponseType(success=False, message=f"Error: {str(e)}")
 
@@ -1004,10 +1005,10 @@ class UsuarioMutation:
             try:
                 ingreso = Ingreso.objects.get(id_ingreso=id_ingreso)
             except Ingreso.DoesNotExist:
-                return ResponseType(success=False, message="Puerta no encontrada.")
+                return ResponseType(success=False, message="Portón no encontrado.")
             ingreso.activo = True
             ingreso.save()
-            return ResponseType(success=True, message=f"Puerta '{ingreso.nombre}' reactivada correctamente.")
+            return ResponseType(success=True, message=f"Portón '{ingreso.nombre}' reactivado correctamente.")
         except Exception as e:
             return ResponseType(success=False, message=f"Error: {str(e)}")
 

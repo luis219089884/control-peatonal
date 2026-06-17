@@ -144,7 +144,7 @@ class AccesoMutation:
                 return _rechazado("No se encontró un guardia asociado a este usuario.")
 
             if guardia.ingreso.id_ingreso != id_ingreso:
-                return _rechazado("No estás asignado a esta puerta de ingreso.")
+                return _rechazado("No estás asignado a este portón.")
 
             if not token_hash or not token_hash.strip():
                 return _rechazado("Código QR vacío.")
@@ -471,7 +471,7 @@ class AccesoMutation:
                 return _rechazar_manual("No se encontró un guardia asociado a este usuario.")
 
             if guardia.ingreso.id_ingreso != id_ingreso:
-                return _rechazar_manual("No estás asignado a esta puerta de ingreso.")
+                return _rechazar_manual("No estás asignado a este portón.")
 
             if not ci or not ci.strip():
                 return _rechazar_manual("CI requerido.")
@@ -595,7 +595,7 @@ class AccesoMutation:
                 return _error_log("No se encontró un guardia asociado a este usuario.")
 
             if guardia.ingreso.id_ingreso != id_ingreso:
-                return _error_log("No estás asignado a esta puerta de ingreso.")
+                return _error_log("No estás asignado a este portón.")
 
             if tipo_movimiento not in ("entrada", "salida"):
                 return _error_log("Tipo de movimiento inválido.")
@@ -729,21 +729,23 @@ class AccesoMutation:
             if admin.rol.nombre != "admin":
                 return ResponseType(success=False, message="No tienes permiso para esta acci?n.")
             if not nombre or not nombre.strip():
-                return ResponseType(success=False, message="El nombre de la puerta es requerido.")
+                return ResponseType(success=False, message="El nombre del portón es requerido.")
 
+            from accesos.utils import normalizar_nombre_porton
             from usuarios.models import Facultad
             try:
                 facultad = Facultad.objects.get(id_facultad=id_facultad)
             except Facultad.DoesNotExist:
                 return ResponseType(success=False, message="Facultad no encontrada.")
 
+            nombre_norm = normalizar_nombre_porton(nombre)
             Ingreso.objects.create(
-                nombre=nombre.strip(),
+                nombre=nombre_norm,
                 descripcion=descripcion,
                 ubicacion=ubicacion,
                 facultad=facultad,
                 sede=facultad.sede if facultad.sede_id else None,
             )
-            return ResponseType(success=True, message=f"Puerta '{nombre}' creada correctamente.")
+            return ResponseType(success=True, message=f"Portón '{nombre_norm}' creado correctamente.")
         except Exception as e:
-            return ResponseType(success=False, message=f"Error al crear puerta: {str(e)}")
+            return ResponseType(success=False, message=f"Error al crear portón: {str(e)}")

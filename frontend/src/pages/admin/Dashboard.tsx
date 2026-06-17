@@ -200,7 +200,7 @@ export default function Dashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {['Hora', 'Nombre', 'Tipo', 'Movimiento', 'Facultad', 'Puerta', 'Resultado'].map(h => (
+                  {['Hora', 'Nombre', 'Tipo', 'Movimiento', 'Facultad', 'Portón', 'Resultado'].map(h => (
                     <th key={h} className="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                       {h}
                     </th>

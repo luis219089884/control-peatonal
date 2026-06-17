@@ -150,7 +150,7 @@ export default function Perfil() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Fecha/Hora','Puerta','Facultad','Sede','Resultado'].map(h => (
+                  {['Fecha/Hora','Portón','Facultad','Sede','Resultado'].map(h => (
                     <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>

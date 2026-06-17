@@ -92,7 +92,7 @@
 
   {"model": "accesos.ingreso", "pk": 1, "fields": {
     "facultad": 1,
-    "nombre": "Puerta Principal FICCT",
+    "nombre": "Portón Principal FICCT",
     "descripcion": "Acceso principal campus central",
     "ubicacion": "Av. del Ejército s/n",
     "activo": true,

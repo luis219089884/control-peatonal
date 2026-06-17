@@ -88,7 +88,7 @@ export default function Accesos() {
   const rechazados = filtrados.filter(r => !r.accesoPermitido).length
 
   const exportCSV = () => {
-    const cols = ['Hora','Nombre','Tipo','Movimiento','Método','Sede','Facultad','Puerta','Guardia','Resultado']
+    const cols = ['Hora','Nombre','Tipo','Movimiento','Método','Sede','Facultad','Portón','Guardia','Resultado']
     const rows = filtrados.map(r => [
       new Date(r.fechaHora).toLocaleString('es-BO'),
       r.nombreCompleto,

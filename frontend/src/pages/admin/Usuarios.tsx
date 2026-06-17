@@ -839,9 +839,9 @@ function ModalUsuarioForm({
                       {base.rol === 'guardia' && (
                         <>
                           <div>
-                            <label className="label-field">Puerta de ingreso *</label>
+                            <label className="label-field">Portón de ingreso *</label>
                             <select value={ext.id_ingreso || ''} onChange={e => setE('id_ingreso', e.target.value)} className="input-field">
-                              <option value="">Seleccionar puerta...</option>
+                              <option value="">Seleccionar portón...</option>
                               {ingresos.map(i => (
                                 <option key={i.idIngreso} value={i.idIngreso}>
                                   {i.nombre} — {i.facultadNombre} ({i.sedeNombre})

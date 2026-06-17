@@ -19,7 +19,7 @@ interface Facultad { idFacultad: number; nombre: string }
 const TIPOS = ['estudiante','docente','administrativo','personal_externo','invitado','guardia']
 
 function exportarCSV(registros: Registro[]) {
-  const encabezados = ['Fecha/Hora','Nombre','Tipo','Sede Origen','Facultad Origen','Carrera','Puerta Ingreso','Guardia','Resultado']
+  const encabezados = ['Fecha/Hora','Nombre','Tipo','Sede Origen','Facultad Origen','Carrera','Portón','Guardia','Resultado']
   const filas = registros.map(r => [
     new Date(r.fechaHora).toLocaleString('es-BO'),
     r.nombreCompleto,
@@ -158,7 +158,7 @@ export default function Reportes() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Fecha/Hora','Nombre','Tipo','Sede','Facultad','Puerta','Guardia','Resultado'].map(h => (
+                  {['Fecha/Hora','Nombre','Tipo','Sede','Facultad','Portón','Guardia','Resultado'].map(h => (
                     <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>

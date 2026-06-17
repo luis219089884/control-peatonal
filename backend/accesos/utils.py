@@ -3,10 +3,30 @@ Utilidades de lógica de negocio para el módulo de accesos.
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 # Solo estos perfiles pueden entrar/salir por cualquier sede de la UAGRM.
 TIPOS_ACCESO_LIBRE_SEDE = frozenset({"estudiante", "docente", "administrativo"})
+
+
+def normalizar_nombre_porton(nombre: str) -> str:
+    """
+    Unifica el nombre de un punto de acceso con el prefijo institucional 'Portón'.
+    Convierte variantes como 'puerta', 'porton' o 'Porton' al formato estándar.
+    """
+    texto = " ".join(nombre.strip().split())
+    if not texto:
+        return texto
+    cuerpo = re.sub(r"^(puerta|portón|porton)\s+", "", texto, flags=re.IGNORECASE)
+    palabras = []
+    for palabra in cuerpo.split():
+        if palabra.isupper():
+            palabras.append(palabra)
+        else:
+            palabras.append(palabra.capitalize())
+    cuerpo = " ".join(palabras)
+    return f"Portón {cuerpo}" if cuerpo else "Portón"
 
 
 def esta_adentro_sede(usuario_id: int, sede_id: int) -> bool:

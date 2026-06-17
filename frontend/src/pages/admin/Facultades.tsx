@@ -125,7 +125,7 @@ function ModalFacultad({
   )
 }
 
-// ─── Modal Ingreso / Puerta ───────────────────────────────────────────────────
+// ─── Modal Ingreso / Portón ───────────────────────────────────────────────────
 
 function ModalIngreso({
   ingreso, facultades, onClose, onGuardado,
@@ -173,7 +173,7 @@ function ModalIngreso({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="bg-[#1a3a6b] text-white px-6 py-4 rounded-t-xl flex justify-between items-center">
-          <h3 className="font-bold text-lg">{isEdit ? '✏️ Editar Puerta' : '➕ Nueva Puerta de Ingreso'}</h3>
+          <h3 className="font-bold text-lg">{isEdit ? '✏️ Editar Portón' : '➕ Nuevo Portón'}</h3>
           <button onClick={onClose} className="text-white/70 hover:text-white text-xl">✕</button>
         </div>
         <div className="px-6 py-5 space-y-4">
@@ -189,9 +189,9 @@ function ModalIngreso({
             </select>
           </div>
           <div>
-            <label className="label-field">Nombre *</label>
+            <label className="label-field">Nombre del portón *</label>
             <input value={nombre} onChange={e => setNombre(e.target.value)} className="input-field"
-              placeholder="Ej: Puerta Principal FICCT" />
+              placeholder="Ej: Portón Principal FICCT" />
           </div>
           <div>
             <label className="label-field">Descripción</label>
@@ -208,7 +208,7 @@ function ModalIngreso({
         <div className="px-6 pb-5 flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleGuardar} loading={loading}>
-            {isEdit ? '💾 Guardar cambios' : '✅ Crear Puerta'}
+            {isEdit ? '💾 Guardar cambios' : '✅ Crear Portón'}
           </Button>
         </div>
       </div>
@@ -425,7 +425,7 @@ export default function Facultades() {
       {/* Título */}
       <div>
         <h1 className="text-2xl font-bold text-[#1a3a6b]">🏛️ Facultades e Ingresos</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Gestiona facultades y puertas de acceso</p>
+        <p className="text-sm text-gray-500 mt-0.5">Gestiona facultades, portones y carreras</p>
       </div>
 
       {/* Mensaje */}
@@ -438,7 +438,7 @@ export default function Facultades() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
-        {([['facultades', '🏛️ Facultades'], ['ingresos', '🚪 Puertas'], ['carreras', '🎓 Carreras']] as const).map(([id, label]) => (
+        {([['facultades', '🏛️ Facultades'], ['ingresos', '🚪 Portones'], ['carreras', '🎓 Carreras']] as const).map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-5 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px
               ${tab === id ? 'border-[#1a3a6b] text-[#1a3a6b]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
@@ -535,19 +535,19 @@ export default function Facultades() {
               <option value="">Todas</option>
             </select>
             <span className="text-xs text-gray-400 flex-1">
-              {ingresos.length} puerta{ingresos.length !== 1 ? 's' : ''}
+              {ingresos.length} portón{ingresos.length !== 1 ? 'es' : ''}
             </span>
-            <Button onClick={() => setModalIng({ ingreso: null })}>+ Nueva Puerta</Button>
+            <Button onClick={() => setModalIng({ ingreso: null })}>+ Nuevo Portón</Button>
           </div>
 
           {loadingIng ? (
-            <div className="flex justify-center mt-12"><LoadingSpinner text="Cargando puertas..." /></div>
+            <div className="flex justify-center mt-12"><LoadingSpinner text="Cargando portones..." /></div>
           ) : ingresos.length === 0 ? (
             <div className="text-center py-16 text-gray-400 bg-white rounded-xl shadow-card">
               <p className="text-4xl mb-3">🚪</p>
-              <p>No hay puertas registradas.</p>
+              <p>No hay portones registrados.</p>
               <button onClick={() => setModalIng({ ingreso: null })} className="mt-3 text-sm text-[#1a3a6b] hover:underline">
-                + Crear primera puerta
+                + Crear primer portón
               </button>
             </div>
           ) : (
@@ -556,7 +556,7 @@ export default function Facultades() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
-                      {['Puerta', 'Facultad', 'Sede', 'Ubicación', 'Guardia asignado', 'Turno', 'Estado', 'Acciones'].map(h => (
+                      {['Portón', 'Facultad', 'Sede', 'Ubicación', 'Guardia asignado', 'Turno', 'Estado', 'Acciones'].map(h => (
                         <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -730,7 +730,7 @@ export default function Facultades() {
           onClose={() => setModalIng(null)}
           onGuardado={() => {
             refetchIng()
-            setMsg(modalIng.ingreso ? 'Puerta actualizada.' : 'Puerta creada correctamente.')
+            setMsg(modalIng.ingreso ? 'Portón actualizado.' : 'Portón creado correctamente.')
           }}
         />
       )}
@@ -753,8 +753,8 @@ export default function Facultades() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <h3 className="font-bold text-gray-800 text-lg">
               {confirm.activo
-                ? `⚠️ Desactivar ${confirm.tipo === 'facultad' ? 'facultad' : confirm.tipo === 'carrera' ? 'carrera' : 'puerta'}`
-                : `✅ Activar ${confirm.tipo === 'facultad' ? 'facultad' : confirm.tipo === 'carrera' ? 'carrera' : 'puerta'}`}
+                ? `⚠️ Desactivar ${confirm.tipo === 'facultad' ? 'facultad' : confirm.tipo === 'carrera' ? 'carrera' : 'portón'}`
+                : `✅ Activar ${confirm.tipo === 'facultad' ? 'facultad' : confirm.tipo === 'carrera' ? 'carrera' : 'portón'}`}
             </h3>
             <p className="text-sm text-gray-600">
               {confirm.activo ? (
