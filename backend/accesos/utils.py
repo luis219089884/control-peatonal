@@ -95,6 +95,40 @@ def usuario_puede_acceder_sede(usuario, sede_id: int) -> bool:
     return False
 
 
+def nombres_sedes_autorizadas_usuario(usuario) -> list[str]:
+    """Sedes donde un usuario puede acceder (solo aplica a personal externo)."""
+    if usuario.tipo_usuario != "personal_externo":
+        return []
+    from accesos.models import PersonaFacultad
+    return list(
+        PersonaFacultad.objects.filter(
+            usuario=usuario,
+            activo=True,
+            facultad__sede__isnull=False,
+        )
+        .values_list("facultad__sede__nombre", flat=True)
+        .distinct()
+        .order_by("facultad__sede__nombre")
+    )
+
+
+def mensaje_rechazo_sede_invitado(invitado) -> str:
+    """Mensaje cuando un invitado escanea en una sede distinta a la autorizada."""
+    if invitado.facultad_destino_id and invitado.facultad_destino.sede_id:
+        sede_nombre = invitado.facultad_destino.sede.nombre
+        return f"Acceso no válido en esta sede. Debe presentarse en: {sede_nombre}."
+    return "Acceso no válido en esta sede. No tiene sede de destino asignada."
+
+
+def mensaje_rechazo_sede_usuario(usuario) -> str:
+    """Mensaje cuando un usuario no puede acceder en la sede del portón."""
+    nombres = nombres_sedes_autorizadas_usuario(usuario)
+    if not nombres:
+        return "Acceso no válido en esta sede. No tiene sedes autorizadas para su perfil."
+    lista = ", ".join(nombres)
+    return f"Acceso no válido en esta sede. Debe presentarse en: {lista}."
+
+
 def invitado_visita_completada(invitado_id: int, sede_id: int) -> bool:
     """True si el invitado ya registró entrada y salida en la sede."""
     from accesos.models import RegistroIngreso

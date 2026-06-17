@@ -175,6 +175,8 @@ class AccesoMutation:
                 esta_adentro_sede_invitado,
                 invitado_puede_acceder_sede,
                 invitado_visita_completada,
+                mensaje_rechazo_sede_invitado,
+                mensaje_rechazo_sede_usuario,
                 obtener_sede_de_ingreso,
                 usuario_puede_acceder_sede,
             )
@@ -199,7 +201,7 @@ class AccesoMutation:
                 if inv.fecha_visita != date.today():
                     return _rechazado("Acceso no válido.")
                 if not invitado_puede_acceder_sede(inv, sede_obj.id_sede):
-                    return _rechazado("Acceso no válido.")
+                    return _rechazado(mensaje_rechazo_sede_invitado(inv))
                 if invitado_visita_completada(inv.id_invitado, sede_obj.id_sede):
                     return _rechazado("Acceso no válido.")
 
@@ -233,7 +235,7 @@ class AccesoMutation:
                         return _rechazado("Acceso no válido.")
 
                 if not usuario_puede_acceder_sede(u, sede_obj.id_sede):
-                    return _rechazado("Acceso no válido.")
+                    return _rechazado(mensaje_rechazo_sede_usuario(u))
 
                 ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
                 tipo_movimiento = "salida" if ya_adentro else "entrada"
@@ -485,6 +487,7 @@ class AccesoMutation:
 
             from accesos.utils import (
                 esta_adentro_sede,
+                mensaje_rechazo_sede_usuario,
                 obtener_sede_de_ingreso,
                 usuario_puede_acceder_sede,
             )
@@ -506,7 +509,7 @@ class AccesoMutation:
                 return _rechazar_manual("Acción no permitida.")
 
             if not usuario_puede_acceder_sede(u, sede_obj.id_sede):
-                return _rechazar_manual("Acceso no válido en esta sede.")
+                return _rechazar_manual(mensaje_rechazo_sede_usuario(u))
 
             ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
             if tipo_movimiento and tipo_movimiento not in ("entrada", "salida"):
