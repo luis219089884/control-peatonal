@@ -14,7 +14,7 @@ const itemsAdmin: MenuItem[] = [
   { to: '/admin/usuarios/personal-externo',    label: 'Personal Externo',   icon: '🔧' },
   { to: '/admin/empresas',                     label: 'Empresas',           icon: '🏭' },
   { to: '/admin/facultades',                   label: 'Facultades',         icon: '🏛️' },
-  { to: '/admin/reportes',                     label: 'Reportes',           icon: '📈' },
+  { to: '/admin/reportes',                     label: 'Informes',           icon: '📈' },
   { to: '/admin/dtic',                         label: 'Sync DTIC',          icon: '🔄' },
   { to: '/perfil',                             label: 'Mi Perfil',          icon: '👤' },
 ]
