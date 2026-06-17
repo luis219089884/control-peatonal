@@ -38,6 +38,7 @@ def _select_related_registros():
         "guardia__usuario__rol",
         "guardia__ingreso__sede",
         "guardia__ingreso__facultad__sede",
+        "registrado_por__rol",
     )
 
 
@@ -62,6 +63,16 @@ def _registros_hoy_qs(guardia):
     inicio, fin = _rango_dia_local()
     return _select_related_registros().filter(
         guardia=guardia,
+        fecha_hora__gte=inicio,
+        fecha_hora__lt=fin,
+    ).order_by("-fecha_hora")
+
+
+def _registros_hoy_por_ingreso(id_ingreso: int):
+    """Registros del portón en el día local (America/La_Paz)."""
+    inicio, fin = _rango_dia_local()
+    return _select_related_registros().filter(
+        ingreso_id=id_ingreso,
         fecha_hora__gte=inicio,
         fecha_hora__lt=fin,
     ).order_by("-fecha_hora")
@@ -135,6 +146,55 @@ class AccesoQuery:
             facultad_nombre=facultad_nombre,
             sede_nombre=sede_nombre,
             sede_id=sede_id,
+            guardia_asignado_nombre=f"{guardia_usuario.apellidos} {guardia_usuario.nombres}",
+            registros_hoy=registros,
+        )
+
+    @strawberry.field
+    def panel_porton_admin(self, info, id_ingreso: int) -> GuardiaPanelType:
+        """Panel operativo del admin en un portón seleccionado."""
+        admin = get_usuario_from_info(info)
+        if admin.rol.nombre != "admin":
+            raise Exception("No tienes permiso para esta acción.")
+
+        try:
+            ingreso = Ingreso.objects.select_related(
+                "sede", "facultad__sede"
+            ).get(id_ingreso=id_ingreso)
+        except Ingreso.DoesNotExist:
+            raise Exception("Portón no encontrado.")
+        if not ingreso.activo:
+            raise Exception("Este portón está inactivo.")
+
+        from accesos.utils import obtener_sede_de_ingreso
+
+        guardia = (
+            Guardia.objects
+            .select_related("usuario")
+            .filter(ingreso=ingreso)
+            .first()
+        )
+        guardia_nombre = (
+            f"{guardia.usuario.apellidos} {guardia.usuario.nombres}" if guardia else None
+        )
+
+        sede = obtener_sede_de_ingreso(ingreso)
+        sede_nombre = sede.nombre if sede else "—"
+        sede_id = sede.id_sede if sede else 0
+        facultad_nombre = ingreso.facultad.nombre if ingreso.facultad_id else sede_nombre
+
+        registros = list(_registros_hoy_por_ingreso(id_ingreso))
+
+        return GuardiaPanelType(
+            nombre_completo=f"{admin.apellidos} {admin.nombres}",
+            turno=guardia.turno if guardia else "—",
+            horario="Modo administrador",
+            ingreso_id=ingreso.id_ingreso,
+            ingreso_nombre=ingreso.nombre,
+            facultad_nombre=facultad_nombre,
+            sede_nombre=sede_nombre,
+            sede_id=sede_id,
+            guardia_asignado_nombre=guardia_nombre,
             registros_hoy=registros,
         )
 

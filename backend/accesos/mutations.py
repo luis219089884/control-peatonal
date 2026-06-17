@@ -19,6 +19,7 @@ from accesos.types import (
     QRGeneradoType,
     ValidarQRResponseType,
 )
+from accesos.operador_utils import resolver_operador_acceso
 from usuarios.models import Administrativo, Docente, Estudiante, PersonalExterno
 from usuarios.types import ResponseType
 from usuarios.utils import get_usuario_from_info
@@ -130,21 +131,10 @@ class AccesoMutation:
         - Se valida el estado adentro/afuera según la sede del portón.
         """
         try:
-            guardia_usuario = get_usuario_from_info(info)
-            if guardia_usuario.rol.nombre != "guardia":
-                return _rechazado("Solo los guardias pueden validar QR.")
-            if not guardia_usuario.activo:
-                return _rechazado("Guardia desactivado.")
-
-            try:
-                guardia = Guardia.objects.select_related(
-                    "ingreso__sede", "ingreso__facultad__sede"
-                ).get(usuario=guardia_usuario)
-            except Guardia.DoesNotExist:
-                return _rechazado("No se encontró un guardia asociado a este usuario.")
-
-            if guardia.ingreso.id_ingreso != id_ingreso:
-                return _rechazado("No estás asignado a este portón.")
+            operador_usuario = get_usuario_from_info(info)
+            operador, err = resolver_operador_acceso(operador_usuario, id_ingreso)
+            if err:
+                return _rechazado(err)
 
             if not token_hash or not token_hash.strip():
                 return _rechazado("Código QR vacío.")
@@ -162,12 +152,7 @@ class AccesoMutation:
             if qr.expira_en < ahora:
                 return _rechazado("QR expirado. Genera un nuevo código.")
 
-            try:
-                ingreso = Ingreso.objects.select_related(
-                    "sede", "facultad__sede"
-                ).get(id_ingreso=id_ingreso)
-            except Ingreso.DoesNotExist:
-                return _rechazado("Punto de acceso no encontrado.")
+            ingreso = operador.ingreso
 
             # Determinar la sede efectiva del portón
             from accesos.utils import (
@@ -265,7 +250,8 @@ class AccesoMutation:
             RegistroIngreso.objects.create(
                 token=qr,
                 ingreso=ingreso,
-                guardia=guardia,
+                guardia=operador.guardia,
+                registrado_por=operador.usuario,
                 sede_acceso=sede_obj,
                 usuario=usuario_obj,
                 invitado=invitado_obj,
@@ -457,33 +443,16 @@ class AccesoMutation:
             )
 
         try:
-            guardia_usuario = get_usuario_from_info(info)
-            if guardia_usuario.rol.nombre != "guardia":
-                return _rechazar_manual("Solo los guardias pueden usar esta función.")
-            if not guardia_usuario.activo:
-                return _rechazar_manual("Guardia desactivado.")
-
-            try:
-                guardia = Guardia.objects.select_related(
-                    "ingreso__sede", "ingreso__facultad__sede"
-                ).get(usuario=guardia_usuario)
-            except Guardia.DoesNotExist:
-                return _rechazar_manual("No se encontró un guardia asociado a este usuario.")
-
-            if guardia.ingreso.id_ingreso != id_ingreso:
-                return _rechazar_manual("No estás asignado a este portón.")
+            operador_usuario = get_usuario_from_info(info)
+            operador, err = resolver_operador_acceso(operador_usuario, id_ingreso)
+            if err:
+                return _rechazar_manual(err)
 
             if not ci or not ci.strip():
                 return _rechazar_manual("CI requerido.")
 
             ci = ci.strip()
-
-            try:
-                ingreso = Ingreso.objects.select_related(
-                    "sede", "facultad__sede"
-                ).get(id_ingreso=id_ingreso)
-            except Ingreso.DoesNotExist:
-                return _rechazar_manual("Punto de acceso no encontrado.")
+            ingreso = operador.ingreso
 
             from accesos.utils import (
                 esta_adentro_sede,
@@ -527,7 +496,8 @@ class AccesoMutation:
             RegistroIngreso.objects.create(
                 token=None,
                 ingreso=ingreso,
-                guardia=guardia,
+                guardia=operador.guardia,
+                registrado_por=operador.usuario,
                 sede_acceso=sede_obj,
                 usuario=u,
                 invitado=None,
@@ -581,21 +551,10 @@ class AccesoMutation:
             )
 
         try:
-            guardia_usuario = get_usuario_from_info(info)
-            if guardia_usuario.rol.nombre != "guardia":
-                return _error_log("Solo los guardias pueden usar esta función.")
-            if not guardia_usuario.activo:
-                return _error_log("Guardia desactivado.")
-
-            try:
-                guardia = Guardia.objects.select_related(
-                    "ingreso__sede", "ingreso__facultad__sede"
-                ).get(usuario=guardia_usuario)
-            except Guardia.DoesNotExist:
-                return _error_log("No se encontró un guardia asociado a este usuario.")
-
-            if guardia.ingreso.id_ingreso != id_ingreso:
-                return _error_log("No estás asignado a este portón.")
+            operador_usuario = get_usuario_from_info(info)
+            operador, err = resolver_operador_acceso(operador_usuario, id_ingreso)
+            if err:
+                return _error_log(err)
 
             if tipo_movimiento not in ("entrada", "salida"):
                 return _error_log("Tipo de movimiento inválido.")
@@ -603,12 +562,7 @@ class AccesoMutation:
             if not ci.strip() or not nombre_completo.strip() or not motivo.strip():
                 return _error_log("CI, nombre y motivo son requeridos.")
 
-            try:
-                ingreso = Ingreso.objects.select_related(
-                    "sede", "facultad__sede"
-                ).get(id_ingreso=id_ingreso)
-            except Ingreso.DoesNotExist:
-                return _error_log("Punto de acceso no encontrado.")
+            ingreso = operador.ingreso
 
             from accesos.utils import obtener_sede_de_ingreso
             sede_obj = obtener_sede_de_ingreso(ingreso)
@@ -616,7 +570,8 @@ class AccesoMutation:
             RegistroIngreso.objects.create(
                 token=None,
                 ingreso=ingreso,
-                guardia=guardia,
+                guardia=operador.guardia,
+                registrado_por=operador.usuario,
                 sede_acceso=sede_obj,
                 usuario=None,
                 invitado=None,

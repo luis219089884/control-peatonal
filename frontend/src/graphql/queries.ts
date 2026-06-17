@@ -56,6 +56,20 @@ export const MI_PANEL_GUARDIA_QUERY = gql`
   query MiPanelGuardia {
     miPanelGuardia {
       nombreCompleto turno horario ingresoId ingresoNombre facultadNombre sedeNombre sedeId
+      guardiaAsignadoNombre
+      registrosHoy {
+        idRegistro tipoPersona nombreCompleto accesoPermitido fechaHora tipoMovimiento metodo
+        ingreso { nombre }
+      }
+    }
+  }
+`
+
+export const PANEL_PORTON_ADMIN_QUERY = gql`
+  query PanelPortonAdmin($idIngreso: Int!) {
+    panelPortonAdmin(idIngreso: $idIngreso) {
+      nombreCompleto turno horario ingresoId ingresoNombre facultadNombre sedeNombre sedeId
+      guardiaAsignadoNombre
       registrosHoy {
         idRegistro tipoPersona nombreCompleto accesoPermitido fechaHora tipoMovimiento metodo
         ingreso { nombre }

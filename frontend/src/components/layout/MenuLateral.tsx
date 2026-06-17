@@ -8,6 +8,7 @@ const itemsAdmin: MenuItem[] = [
   { to: '/admin/accesos',                      label: 'Accesos',            icon: '📋' },
   { to: '/admin/guardias',                     label: 'Guardias',           icon: '👮' },
   { to: '/admin/portones',                     label: 'Portones',           icon: '🚪' },
+  { to: '/admin/panel-guardia',                label: 'Panel Guardia',      icon: '👮' },
   { to: '/admin/usuarios/estudiantes',         label: 'Estudiantes',        icon: '🎓' },
   { to: '/admin/usuarios/docentes',            label: 'Docentes',           icon: '👨‍🏫' },
   { to: '/admin/usuarios/administrativos',     label: 'Administrativos',    icon: '🏢' },

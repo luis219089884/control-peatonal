@@ -49,7 +49,7 @@ class QrTokenAdmin(admin.ModelAdmin):
 class RegistroIngresoAdmin(admin.ModelAdmin):
     list_display = (
         "id_registro", "nombre_completo", "tipo_persona",
-        "ingreso", "guardia", "acceso_permitido", "fecha_hora",
+        "ingreso", "guardia", "registrado_por", "acceso_permitido", "fecha_hora",
     )
     search_fields = ("nombre_completo", "usuario__ci")
     list_filter = ("tipo_persona", "acceso_permitido", "ingreso")

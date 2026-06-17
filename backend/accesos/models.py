@@ -210,7 +210,16 @@ class RegistroIngreso(models.Model):
         QrToken, on_delete=models.PROTECT, null=True, blank=True,
     )
     ingreso = models.ForeignKey(Ingreso, on_delete=models.PROTECT)
-    guardia = models.ForeignKey(Guardia, on_delete=models.PROTECT)
+    guardia = models.ForeignKey(
+        Guardia, on_delete=models.PROTECT, null=True, blank=True,
+    )
+    registrado_por = models.ForeignKey(
+        "usuarios.Usuario",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="registros_operados",
+    )
 
     # Sede donde ocurrió el movimiento (determina "adentro/afuera")
     sede_acceso = models.ForeignKey(

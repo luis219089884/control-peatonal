@@ -69,7 +69,8 @@ class RegistroIngresoType:
     motivo_rechazo: Optional[str]
     fecha_hora: datetime
     ingreso: IngresoType
-    guardia: GuardiaType
+    guardia: Optional[GuardiaType] = None
+    registrado_por: Optional[UsuarioType] = None
 
 
 @strawberry.type
@@ -151,6 +152,7 @@ class GuardiaPanelType:
     facultad_nombre: str
     sede_nombre: str
     sede_id: int
+    guardia_asignado_nombre: Optional[str] = None
     registros_hoy: list[RegistroIngresoType]
 
 

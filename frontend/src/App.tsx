@@ -16,6 +16,7 @@ import Reportes from './pages/admin/Reportes'
 import Guardias from './pages/admin/Guardias'
 import Portones from './pages/admin/Portones'
 import Accesos from './pages/admin/Accesos'
+import PanelGuardiaAdmin from './pages/admin/PanelGuardiaAdmin'
 import Sincronizacion from './pages/admin/Sincronizacion'
 
 function RootRedirect() {
@@ -96,6 +97,11 @@ export default function App() {
             <Route path="/admin/portones" element={
               <ProtectedRoute roles={['admin']}>
                 <Portones />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/panel-guardia" element={
+              <ProtectedRoute roles={['admin']}>
+                <PanelGuardiaAdmin />
               </ProtectedRoute>
             } />
             <Route path="/admin/accesos" element={
