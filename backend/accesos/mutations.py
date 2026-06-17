@@ -150,7 +150,9 @@ class AccesoMutation:
                 return _rechazado("Código QR vacío.")
 
             try:
-                qr = QrToken.objects.select_related("usuario", "invitado").get(
+                qr = QrToken.objects.select_related(
+                    "usuario", "invitado", "invitado__facultad_destino__sede"
+                ).get(
                     token_hash=token_hash.strip()
                 )
             except QrToken.DoesNotExist:
@@ -171,8 +173,10 @@ class AccesoMutation:
             from accesos.utils import (
                 esta_adentro_sede,
                 esta_adentro_sede_invitado,
+                invitado_puede_acceder_sede,
                 invitado_visita_completada,
                 obtener_sede_de_ingreso,
+                usuario_puede_acceder_sede,
             )
             sede_obj = obtener_sede_de_ingreso(ingreso)
             if not sede_obj:
@@ -193,6 +197,8 @@ class AccesoMutation:
                 if not inv.activo:
                     return _rechazado("Acceso no válido.")
                 if inv.fecha_visita != date.today():
+                    return _rechazado("Acceso no válido.")
+                if not invitado_puede_acceder_sede(inv, sede_obj.id_sede):
                     return _rechazado("Acceso no válido.")
                 if invitado_visita_completada(inv.id_invitado, sede_obj.id_sede):
                     return _rechazado("Acceso no válido.")
@@ -225,6 +231,9 @@ class AccesoMutation:
                             return _rechazado("Acceso no válido.")
                     except PersonalExterno.DoesNotExist:
                         return _rechazado("Acceso no válido.")
+
+                if not usuario_puede_acceder_sede(u, sede_obj.id_sede):
+                    return _rechazado("Acceso no válido.")
 
                 ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
                 tipo_movimiento = "salida" if ya_adentro else "entrada"
@@ -474,7 +483,11 @@ class AccesoMutation:
             except Ingreso.DoesNotExist:
                 return _rechazar_manual("Punto de acceso no encontrado.")
 
-            from accesos.utils import esta_adentro_sede, obtener_sede_de_ingreso
+            from accesos.utils import (
+                esta_adentro_sede,
+                obtener_sede_de_ingreso,
+                usuario_puede_acceder_sede,
+            )
             from usuarios.models import Usuario
 
             sede_obj = obtener_sede_de_ingreso(ingreso)
@@ -491,6 +504,9 @@ class AccesoMutation:
 
             if u.rol.nombre == "guardia":
                 return _rechazar_manual("Acción no permitida.")
+
+            if not usuario_puede_acceder_sede(u, sede_obj.id_sede):
+                return _rechazar_manual("Acceso no válido en esta sede.")
 
             ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
             if tipo_movimiento and tipo_movimiento not in ("entrada", "salida"):

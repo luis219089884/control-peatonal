@@ -5,6 +5,9 @@ from __future__ import annotations
 
 from typing import Optional
 
+# Solo estos perfiles pueden entrar/salir por cualquier sede de la UAGRM.
+TIPOS_ACCESO_LIBRE_SEDE = frozenset({"estudiante", "docente", "administrativo"})
+
 
 def esta_adentro_sede(usuario_id: int, sede_id: int) -> bool:
     """
@@ -60,6 +63,36 @@ def obtener_sede_de_ingreso(ingreso) -> Optional[object]:
     if ingreso.facultad_id and ingreso.facultad.sede_id:
         return ingreso.facultad.sede
     return None
+
+
+def sede_id_de_invitado(invitado) -> Optional[int]:
+    """Sede autorizada para un invitado (la de su facultad destino)."""
+    if invitado.facultad_destino_id and invitado.facultad_destino.sede_id:
+        return invitado.facultad_destino.sede_id
+    return None
+
+
+def invitado_puede_acceder_sede(invitado, sede_id: int) -> bool:
+    """Invitado solo puede acceder por portones de la sede de su facultad destino."""
+    destino = sede_id_de_invitado(invitado)
+    return destino is not None and destino == sede_id
+
+
+def usuario_puede_acceder_sede(usuario, sede_id: int) -> bool:
+    """
+    Estudiantes, docentes y administrativos: cualquier sede.
+    Personal externo: solo sedes de sus facultades vinculadas (PersonaFacultad).
+    """
+    if usuario.tipo_usuario in TIPOS_ACCESO_LIBRE_SEDE:
+        return True
+    if usuario.tipo_usuario == "personal_externo":
+        from accesos.models import PersonaFacultad
+        return PersonaFacultad.objects.filter(
+            usuario=usuario,
+            activo=True,
+            facultad__sede_id=sede_id,
+        ).exists()
+    return False
 
 
 def invitado_visita_completada(invitado_id: int, sede_id: int) -> bool:
