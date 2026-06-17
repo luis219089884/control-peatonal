@@ -41,10 +41,25 @@ def _select_related_registros():
     )
 
 
+def _rango_dia_local(fecha: Optional[date] = None) -> tuple[datetime, datetime]:
+    """Inicio (inclusive) y fin (exclusive) de un día en America/La_Paz."""
+    tz = dj_tz.get_current_timezone()
+    if fecha is None:
+        inicio = dj_tz.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        inicio = dj_tz.make_aware(datetime.combine(fecha, datetime.min.time()), tz)
+    return inicio, inicio + timedelta(days=1)
+
+
+def _registros_dia_local_qs(fecha: Optional[date] = None):
+    """Registros de un día calendario en America/La_Paz (hoy si fecha es None)."""
+    inicio, fin = _rango_dia_local(fecha)
+    return RegistroIngreso.objects.filter(fecha_hora__gte=inicio, fecha_hora__lt=fin)
+
+
 def _registros_hoy_qs(guardia):
     """Registros del guardia en el día local (America/La_Paz)."""
-    inicio = dj_tz.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
-    fin = inicio + timedelta(days=1)
+    inicio, fin = _rango_dia_local()
     return _select_related_registros().filter(
         guardia=guardia,
         fecha_hora__gte=inicio,
@@ -152,10 +167,16 @@ class AccesoQuery:
 
         qs = _select_related_registros().all()
 
-        if fecha_inicio:
-            qs = qs.filter(fecha_hora__date__gte=fecha_inicio)
-        if fecha_fin:
-            qs = qs.filter(fecha_hora__date__lte=fecha_fin)
+        if fecha_inicio and fecha_fin and fecha_inicio == fecha_fin:
+            inicio, fin = _rango_dia_local(fecha_inicio)
+            qs = qs.filter(fecha_hora__gte=inicio, fecha_hora__lt=fin)
+        else:
+            if fecha_inicio:
+                inicio, _ = _rango_dia_local(fecha_inicio)
+                qs = qs.filter(fecha_hora__gte=inicio)
+            if fecha_fin:
+                _, fin = _rango_dia_local(fecha_fin)
+                qs = qs.filter(fecha_hora__lt=fin)
         if id_sede:
             qs = qs.filter(sede_acceso_id=id_sede)
         if id_facultad:
@@ -175,8 +196,8 @@ class AccesoQuery:
         if admin.rol.nombre != "admin":
             raise Exception("No tienes permiso para esta acción.")
 
-        hoy = date.today()
-        qs = RegistroIngreso.objects.filter(fecha_hora__date=hoy)
+        hoy = dj_tz.localdate()
+        qs = _registros_dia_local_qs(hoy)
 
         total = qs.count()
         entradas = qs.filter(tipo_movimiento="entrada", acceso_permitido=True).count()

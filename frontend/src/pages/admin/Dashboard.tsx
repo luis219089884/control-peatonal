@@ -3,8 +3,25 @@ import { ESTADISTICAS_HOY_QUERY, LISTAR_REGISTROS_QUERY } from '../../graphql/qu
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import Badge from '../../components/ui/Badge'
 
-const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const TZ_BO = 'America/La_Paz'
+
+function fechaHoyBolivia(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: TZ_BO })
+}
+
+function fechaLegibleBolivia(): string {
+  const partes = new Intl.DateTimeFormat('es-BO', {
+    timeZone: TZ_BO,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).formatToParts(new Date())
+  const get = (type: string) => partes.find(p => p.type === type)?.value ?? ''
+  const dia = get('weekday')
+  const diaCap = dia.charAt(0).toUpperCase() + dia.slice(1)
+  return `${diaCap} ${get('day')} de ${get('month')} ${get('year')}`
+}
 
 function StatCard({
   icono, label, valor, color, subvalor, sublabel,
@@ -27,18 +44,20 @@ function StatCard({
 }
 
 export default function Dashboard() {
-  const { data: statsData, loading: loadingStats } = useQuery(ESTADISTICAS_HOY_QUERY)
+  const hoy = fechaHoyBolivia()
+  const { data: statsData, loading: loadingStats } = useQuery(ESTADISTICAS_HOY_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  })
   const { data: registrosData, loading: loadingReg } = useQuery(LISTAR_REGISTROS_QUERY, {
-    variables: {},
+    variables: { fechaInicio: hoy, fechaFin: hoy },
     fetchPolicy: 'cache-and-network',
   })
 
   const stats    = statsData?.estadisticasHoy ? JSON.parse(statsData.estadisticasHoy) : null
   const registros = registrosData?.listarRegistros ?? []
-  const ultimos  = [...registros].reverse().slice(0, 15)
+  const ultimos  = registros.slice(0, 15)
 
-  const now      = new Date()
-  const fechaHoy = `${DIAS[now.getDay()]} ${now.getDate()} de ${MESES[now.getMonth()]} ${now.getFullYear()}`
+  const fechaHoy = fechaLegibleBolivia()
 
   return (
     <div className="space-y-6">
@@ -198,7 +217,9 @@ export default function Dashboard() {
                     className={`border-b border-gray-50 hover:bg-blue-50/40 transition-colors
                       ${!r.accesoPermitido ? 'bg-red-50/30' : ''}`}>
                     <td className="py-2.5 px-3 text-gray-500 font-mono text-xs whitespace-nowrap">
-                      {new Date(r.fechaHora).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(r.fechaHora).toLocaleTimeString('es-BO', {
+                        timeZone: TZ_BO, hour: '2-digit', minute: '2-digit',
+                      })}
                     </td>
                     <td className="py-2.5 px-3 font-medium text-gray-800 max-w-[160px]">
                       <span className="truncate block">{r.nombreCompleto}</span>

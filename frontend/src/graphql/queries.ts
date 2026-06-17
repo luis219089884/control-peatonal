@@ -72,7 +72,7 @@ export const LISTAR_REGISTROS_QUERY = gql`
       fechaInicio: $fechaInicio fechaFin: $fechaFin
       idFacultad: $idFacultad tipoPersona: $tipoPersona
     ) {
-      idRegistro nombreCompleto tipoPersona sedePertenece facultadPertenece
+      idRegistro nombreCompleto tipoPersona tipoMovimiento sedePertenece facultadPertenece
       carreraPertenece accesoPermitido motivoRechazo fechaHora
       ingreso { nombre facultad { nombre } }
       guardia { turno usuario { nombres apellidos } }
