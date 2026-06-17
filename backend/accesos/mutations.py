@@ -749,3 +749,83 @@ class AccesoMutation:
             return ResponseType(success=True, message=f"Portón '{nombre_norm}' creado correctamente.")
         except Exception as e:
             return ResponseType(success=False, message=f"Error al crear portón: {str(e)}")
+
+    @strawberry.mutation
+    def enviar_informe_accesos(
+        self,
+        info,
+        emails: str,
+        pdf_base64: str,
+        nombre_archivo: str,
+        periodo_inicio: str,
+        periodo_fin: str,
+        asunto: Optional[str] = None,
+        mensaje: Optional[str] = None,
+        tipo_informe: Optional[str] = "informe",
+    ) -> ResponseType:
+        """Envía por correo un informe PDF de accesos (solo admin)."""
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+
+            if not emails or not emails.strip():
+                return ResponseType(success=False, message="Indica al menos un correo destinatario.")
+            if not pdf_base64 or not pdf_base64.strip():
+                return ResponseType(success=False, message="El documento PDF es requerido.")
+
+            import base64 as b64
+            from accesos.email_utils import _validar_email, enviar_email_informe_accesos
+
+            try:
+                pdf_bytes = b64.b64decode(pdf_base64.strip(), validate=True)
+            except Exception:
+                return ResponseType(success=False, message="El archivo PDF no es válido.")
+
+            if len(pdf_bytes) > 6_000_000:
+                return ResponseType(success=False, message="El PDF supera el tamaño máximo permitido (6 MB).")
+
+            destinatarios = [e.strip() for e in emails.split(",") if e.strip()]
+            invalidos = [e for e in destinatarios if not _validar_email(e)]
+            if invalidos:
+                return ResponseType(success=False, message=f"Correo inválido: {invalidos[0]}")
+
+            enviado_por = f"{admin.apellidos} {admin.nombres}"
+            asunto_final = (asunto or "").strip() or (
+                f"Informe de accesos UAGRM — {periodo_inicio} al {periodo_fin}"
+            )
+            pdf_b64_clean = pdf_base64.strip()
+            nombre_adj = (nombre_archivo or "informe_accesos.pdf").strip()
+
+            ok_list = []
+            fail_list = []
+            for dest in destinatarios:
+                ok = enviar_email_informe_accesos(
+                    email_destino=dest,
+                    pdf_base64=pdf_b64_clean,
+                    nombre_archivo=nombre_adj,
+                    asunto=asunto_final,
+                    periodo_inicio=periodo_inicio,
+                    periodo_fin=periodo_fin,
+                    enviado_por=enviado_por,
+                    mensaje_opcional=mensaje or "",
+                    tipo_informe=tipo_informe or "informe",
+                )
+                (ok_list if ok else fail_list).append(dest)
+
+            if ok_list and not fail_list:
+                return ResponseType(
+                    success=True,
+                    message=f"Informe enviado a: {', '.join(ok_list)}.",
+                )
+            if ok_list and fail_list:
+                return ResponseType(
+                    success=True,
+                    message=f"Enviado a: {', '.join(ok_list)}. Falló en: {', '.join(fail_list)}.",
+                )
+            return ResponseType(
+                success=False,
+                message="No se pudo enviar el correo. Verifica la configuración de Brevo.",
+            )
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error al enviar informe: {str(e)}")

@@ -253,6 +253,33 @@ export const ACTIVAR_INGRESO_MUTATION = gql`
   }
 `
 
+export const ENVIAR_INFORME_ACCESOS_MUTATION = gql`
+  mutation EnviarInformeAccesos(
+    $emails: String!
+    $pdfBase64: String!
+    $nombreArchivo: String!
+    $periodoInicio: String!
+    $periodoFin: String!
+    $asunto: String
+    $mensaje: String
+    $tipoInforme: String
+  ) {
+    enviarInformeAccesos(
+      emails: $emails
+      pdfBase64: $pdfBase64
+      nombreArchivo: $nombreArchivo
+      periodoInicio: $periodoInicio
+      periodoFin: $periodoFin
+      asunto: $asunto
+      mensaje: $mensaje
+      tipoInforme: $tipoInforme
+    ) {
+      success
+      message
+    }
+  }
+`
+
 export const CREAR_FACULTAD_MUTATION = gql`
   mutation CrearFacultad($idSede: Int! $nombre: String! $descripcion: String) {
     crearFacultad(idSede: $idSede nombre: $nombre descripcion: $descripcion) { success message }

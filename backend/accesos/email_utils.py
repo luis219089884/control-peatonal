@@ -244,3 +244,141 @@ def enviar_email_invitado(
         print(f"[EMAIL ERROR] {type(e).__name__}: {e}")
         traceback.print_exc()
         return False
+
+
+UAGRM_NOMBRE_COMPLETO = "Universidad Autónoma Gabriel René Moreno"
+UAGRM_SISTEMA = "Sistema de Control Peatonal"
+
+
+def _validar_email(email: str) -> bool:
+    import re
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email.strip()))
+
+
+def enviar_email_informe_accesos(
+    *,
+    email_destino: str,
+    pdf_base64: str,
+    nombre_archivo: str,
+    asunto: str,
+    periodo_inicio: str,
+    periodo_fin: str,
+    enviado_por: str,
+    mensaje_opcional: str = "",
+    tipo_informe: str = "informe",
+) -> bool:
+    """Envía un informe PDF de accesos por correo vía Brevo."""
+    import requests
+    from django.conf import settings
+
+    try:
+        api_key = settings.BREVO_API_KEY
+        if not api_key:
+            print("[EMAIL ERROR] BREVO_API_KEY no configurada.")
+            return False
+
+        titulo = "Informe institucional de accesos" if tipo_informe == "informe" else "Bitácora de accesos"
+        mensaje_usuario = (
+            f"<p style='font-size:14px;color:#2d3a4a;line-height:1.6;margin:0 0 12px;'>{mensaje_opcional}</p>"
+            if mensaje_opcional.strip()
+            else ""
+        )
+
+        html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"/><title>{asunto}</title></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:32px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0"
+           style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.10);">
+      <tr>
+        <td style="background:linear-gradient(135deg,#0d2149 0%,#1a3a6b 60%,#1e4d8c 100%);
+                   padding:32px 40px 24px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,.7);
+                      text-transform:uppercase;margin-bottom:8px;">
+            {UAGRM_NOMBRE_COMPLETO}
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,.85);letter-spacing:1px;margin-bottom:4px;">
+            {UAGRM_SISTEMA}
+          </div>
+          <div style="height:3px;background:linear-gradient(90deg,#c8a84b,#f0d060,#c8a84b);
+                      border-radius:2px;margin-top:16px;"></div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:28px 40px 12px;">
+          <h2 style="margin:0 0 8px;font-size:18px;color:#1a3a6b;">{titulo}</h2>
+          <p style="margin:0 0 16px;font-size:14px;color:#5a6a7a;">
+            Periodo: <strong>{periodo_inicio}</strong> al <strong>{periodo_fin}</strong>
+          </p>
+          {mensaje_usuario}
+          <p style="margin:0;font-size:14px;color:#2d3a4a;line-height:1.6;">
+            Se adjunta el documento PDF generado por el sistema de control peatonal UAGRM.
+          </p>
+          <p style="margin:16px 0 0;font-size:12px;color:#8899aa;">
+            Enviado por: {enviado_por}
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f7f9fc;padding:20px 40px;text-align:center;border-top:1px solid #e8ecf0;">
+          <p style="margin:0;font-size:11px;color:#8899aa;">
+            Documento generado automáticamente · {UAGRM_NOMBRE_COMPLETO}
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>"""
+
+        texto_plano = (
+            f"{UAGRM_NOMBRE_COMPLETO}\n{UAGRM_SISTEMA}\n\n"
+            f"{titulo}\n"
+            f"Periodo: {periodo_inicio} al {periodo_fin}\n\n"
+            f"{mensaje_opcional.strip()}\n\n" if mensaje_opcional.strip() else ""
+            f"Se adjunta el informe en formato PDF.\n"
+            f"Enviado por: {enviado_por}\n"
+        )
+
+        adjunto = nombre_archivo if nombre_archivo.lower().endswith(".pdf") else f"{nombre_archivo}.pdf"
+
+        payload = {
+            "sender": {
+                "name": settings.BREVO_SENDER_NAME,
+                "email": settings.BREVO_SENDER_EMAIL,
+            },
+            "to": [{"email": email_destino}],
+            "subject": asunto,
+            "htmlContent": html,
+            "textContent": texto_plano,
+            "attachment": [
+                {
+                    "content": pdf_base64,
+                    "name": adjunto,
+                }
+            ],
+        }
+
+        response = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            json=payload,
+            headers={
+                "api-key": api_key,
+                "content-type": "application/json",
+            },
+            timeout=30,
+        )
+
+        if response.status_code in (200, 201):
+            return True
+        print(f"[EMAIL ERROR] Brevo API respondió {response.status_code}: {response.text}")
+        return False
+
+    except Exception as e:
+        import traceback
+        print(f"[EMAIL ERROR] {type(e).__name__}: {e}")
+        traceback.print_exc()
+        return False

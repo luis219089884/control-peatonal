@@ -6,9 +6,10 @@ import {
   LISTAR_REGISTROS_COMPLETO_QUERY,
   LISTAR_SEDES_QUERY,
 } from '../../graphql/queries'
+import { exportarAccesosPdf, type OpcionesPdfAccesos } from '../../utils/exportAccesosPdf'
 import { fechaHoyBolivia, formatearFechaBo } from '../../utils/fechaBolivia'
-import { exportarAccesosPdf } from '../../utils/exportAccesosPdf'
 import Button from '../../components/ui/Button'
+import ModalEnviarInforme from '../../components/admin/accesos/ModalEnviarInforme'
 import TablaAccesos from '../../components/admin/accesos/TablaAccesos'
 import { TarjetasResumenFromRegistros } from '../../components/admin/accesos/TarjetasResumen'
 import {
@@ -148,6 +149,8 @@ export default function AccesosInformes() {
   const [filtros, setFiltros] = useState<FiltrosAccesosState>(FILTROS_INICIAL)
   const [paginaActual, setPagina] = useState(1)
   const [informeGenerado, setInformeGenerado] = useState(modo === 'consulta')
+  const [modalEnviar, setModalEnviar] = useState(false)
+  const [toast, setToast] = useState('')
 
   useEffect(() => {
     setInformeGenerado(modo === 'consulta')
@@ -191,8 +194,8 @@ export default function AccesosInformes() {
   const conteoSede = useMemo(() => agruparConteo(filtrados, r => r.sedePertenece ?? 'Sin sede'), [filtrados])
   const conteoFacultad = useMemo(() => agruparConteo(filtrados, r => r.facultadPertenece ?? 'Sin facultad'), [filtrados])
 
-  const descargarPdf = (tipo: 'consulta' | 'informe') => {
-    if (filtrados.length === 0) return
+  const construirOpcionesPdf = (tipo: 'consulta' | 'informe'): OpcionesPdfAccesos | null => {
+    if (filtrados.length === 0) return null
     const resumen = filtrados.reduce(
       (acc, r) => {
         acc.total++
@@ -204,7 +207,7 @@ export default function AccesosInformes() {
       { total: 0, entradas: 0, salidas: 0, rechazados: 0 },
     )
 
-    exportarAccesosPdf({
+    return {
       tituloDocumento: tipo === 'informe'
         ? 'Informe institucional de ingresos peatonal'
         : 'Bitácora de consulta de accesos',
@@ -227,7 +230,20 @@ export default function AccesosInformes() {
       nombreArchivo: tipo === 'informe'
         ? `informe_accesos_${filtros.fechaInicio}_${filtros.fechaFin}.pdf`
         : `bitacora_accesos_${filtros.fechaInicio}_${filtros.fechaFin}.pdf`,
-    })
+    }
+  }
+
+  const descargarPdf = async (tipo: 'consulta' | 'informe') => {
+    const opciones = construirOpcionesPdf(tipo)
+    if (!opciones) return
+    await exportarAccesosPdf(opciones)
+  }
+
+  const opcionesPdfActual = construirOpcionesPdf(modo === 'informes' ? 'informe' : 'consulta')
+
+  const mostrarToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 4000)
   }
 
   const tabs = [
@@ -249,9 +265,14 @@ export default function AccesosInformes() {
           </p>
         </div>
         {filtrados.length > 0 && (modo === 'consulta' || informeGenerado) && (
-          <Button onClick={() => descargarPdf(modo === 'informes' ? 'informe' : 'consulta')}>
-            Descargar PDF
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => descargarPdf(modo === 'informes' ? 'informe' : 'consulta')}>
+              Descargar PDF
+            </Button>
+            <Button onClick={() => setModalEnviar(true)}>
+              Enviar por correo
+            </Button>
+          </div>
         )}
       </div>
 
@@ -347,6 +368,21 @@ export default function AccesosInformes() {
             </p>
           )}
         </>
+      )}
+
+      {modalEnviar && opcionesPdfActual && (
+        <ModalEnviarInforme
+          opcionesPdf={opcionesPdfActual}
+          tipoInforme={modo === 'informes' ? 'informe' : 'consulta'}
+          onClose={() => setModalEnviar(false)}
+          onEnviado={(msg, ok) => mostrarToast(ok ? `✓ ${msg}` : msg)}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50 max-w-sm">
+          {toast}
+        </div>
       )}
     </div>
   )
