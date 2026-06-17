@@ -10,8 +10,6 @@ import {
   EDITAR_FACULTAD_MUTATION,
   DESACTIVAR_FACULTAD_MUTATION,
   ACTIVAR_FACULTAD_MUTATION,
-  CREAR_INGRESO_MUTATION,
-  EDITAR_INGRESO_MUTATION,
   DESACTIVAR_INGRESO_MUTATION,
   ACTIVAR_INGRESO_MUTATION,
   CREAR_CARRERA_MUTATION,
@@ -22,6 +20,7 @@ import {
 import { LISTAR_CARRERAS_QUERY } from '../../graphql/queries'
 import Button from '../../components/ui/Button'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import ModalPorton from '../../components/admin/ModalPorton'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -118,97 +117,6 @@ function ModalFacultad({
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleGuardar} loading={loading}>
             {isEdit ? '💾 Guardar cambios' : '✅ Crear Facultad'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Modal Ingreso / Portón ───────────────────────────────────────────────────
-
-function ModalIngreso({
-  ingreso, facultades, onClose, onGuardado,
-}: {
-  ingreso: Ingreso | null
-  facultades: Facultad[]
-  onClose: () => void
-  onGuardado: () => void
-}) {
-  const isEdit = ingreso !== null
-  const activasFacs = facultades.filter(f => f.activo)
-  const [nombre, setNombre] = useState(isEdit ? ingreso.nombre : '')
-  const [descripcion, setDescripcion] = useState(isEdit ? (ingreso.descripcion || '') : '')
-  const [ubicacion, setUbicacion] = useState(isEdit ? (ingreso.ubicacion || '') : '')
-  const [idFacultad, setIdFacultad] = useState(
-    isEdit ? ingreso.idFacultad : (activasFacs[0]?.idFacultad ?? 0)
-  )
-  const [error, setError] = useState('')
-
-  const [crear, { loading: lCrear }] = useMutation(CREAR_INGRESO_MUTATION)
-  const [editar, { loading: lEditar }] = useMutation(EDITAR_INGRESO_MUTATION)
-  const loading = lCrear || lEditar
-
-  const handleGuardar = async () => {
-    setError('')
-    if (!nombre.trim()) { setError('El nombre es requerido.'); return }
-    if (!idFacultad) { setError('Selecciona una facultad.'); return }
-    try {
-      if (isEdit) {
-        const { data } = await editar({
-          variables: { idIngreso: ingreso.idIngreso, nombre: nombre.trim(), idFacultad, descripcion: descripcion || null, ubicacion: ubicacion || null },
-        })
-        if (!data?.editarIngreso?.success) { setError(data?.editarIngreso?.message || 'Error'); return }
-      } else {
-        const { data } = await crear({
-          variables: { idFacultad, nombre: nombre.trim(), descripcion: descripcion || null, ubicacion: ubicacion || null },
-        })
-        if (!data?.crearIngreso?.success) { setError(data?.crearIngreso?.message || 'Error'); return }
-      }
-      onGuardado(); onClose()
-    } catch (e: unknown) { setError((e as Error).message) }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div className="bg-[#1a3a6b] text-white px-6 py-4 rounded-t-xl flex justify-between items-center">
-          <h3 className="font-bold text-lg">{isEdit ? '✏️ Editar Portón' : '➕ Nuevo Portón'}</h3>
-          <button onClick={onClose} className="text-white/70 hover:text-white text-xl">✕</button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <div>
-            <label className="label-field">Facultad *</label>
-            <select value={idFacultad} onChange={e => setIdFacultad(+e.target.value)} className="input-field">
-              <option value={0} disabled>Seleccionar facultad...</option>
-              {activasFacs.map(f => (
-                <option key={f.idFacultad} value={f.idFacultad}>
-                  {f.nombre} ({f.sede.nombre})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label-field">Nombre del portón *</label>
-            <input value={nombre} onChange={e => setNombre(e.target.value)} className="input-field"
-              placeholder="Ej: Portón Principal FICCT" />
-          </div>
-          <div>
-            <label className="label-field">Descripción</label>
-            <input value={descripcion} onChange={e => setDescripcion(e.target.value)} className="input-field"
-              placeholder="Descripción opcional" />
-          </div>
-          <div>
-            <label className="label-field">Ubicación</label>
-            <input value={ubicacion} onChange={e => setUbicacion(e.target.value)} className="input-field"
-              placeholder="Ej: Campus Central - Av. del Ejército" />
-          </div>
-          {error && <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">⚠️ {error}</div>}
-        </div>
-        <div className="px-6 pb-5 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleGuardar} loading={loading}>
-            {isEdit ? '💾 Guardar cambios' : '✅ Crear Portón'}
           </Button>
         </div>
       </div>
@@ -724,7 +632,7 @@ export default function Facultades() {
       )}
 
       {modalIng !== null && (
-        <ModalIngreso
+        <ModalPorton
           ingreso={modalIng.ingreso}
           facultades={todasFacultades}
           onClose={() => setModalIng(null)}

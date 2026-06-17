@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useQuery, useMutation } from '@apollo/client'
+import { useQuery } from '@apollo/client'
 import { LISTAR_INGRESOS_QUERY, LISTAR_FACULTADES_QUERY, LISTAR_SEDES_QUERY } from '../../graphql/queries'
-import { CREAR_INGRESO_MUTATION } from '../../graphql/mutations'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import ModalPorton from '../../components/admin/ModalPorton'
 
 interface Ingreso {
   idIngreso: number
@@ -21,109 +21,8 @@ interface Ingreso {
 interface Facultad {
   idFacultad: number
   nombre: string
+  activo?: boolean
   sede: { nombre: string }
-}
-
-function ModalCrear({
-  facultades,
-  onClose,
-  onSave,
-}: {
-  facultades: Facultad[]
-  onClose: () => void
-  onSave: () => Promise<void>
-}) {
-  const [nombre, setNombre]       = useState('')
-  const [idFacultad, setIdFacultad] = useState(0)
-  const [descripcion, setDescripcion] = useState('')
-  const [ubicacion, setUbicacion] = useState('')
-  const [msg, setMsg]             = useState('')
-  const [crear, { loading }]      = useMutation(CREAR_INGRESO_MUTATION)
-
-  const facPorSede: Record<string, Facultad[]> = {}
-  facultades.forEach(f => {
-    const s = f.sede?.nombre || 'Sin sede'
-    if (!facPorSede[s]) facPorSede[s] = []
-    facPorSede[s].push(f)
-  })
-
-  const handleSave = async () => {
-    if (!nombre.trim()) { setMsg('El nombre es requerido.'); return }
-    if (!idFacultad) { setMsg('Selecciona una facultad.'); return }
-    try {
-      const { data } = await crear({
-        variables: { idFacultad, nombre: nombre.trim(), descripcion: descripcion || null, ubicacion: ubicacion || null },
-      })
-      if (data?.crearIngreso?.success) {
-        await onSave()
-        onClose()
-      } else setMsg(data?.crearIngreso?.message ?? 'Error')
-    } catch (e: unknown) { setMsg((e as Error).message) }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="font-bold text-[#1a3a6b] text-lg">Nuevo Portón</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Nombre del portón *</label>
-            <input
-              value={nombre}
-              onChange={e => setNombre(e.target.value)}
-              placeholder="Ej: Portón Principal Norte"
-              autoFocus
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2a5298]"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Facultad / Sede *</label>
-            <select
-              value={idFacultad}
-              onChange={e => setIdFacultad(Number(e.target.value))}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#2a5298] bg-white"
-            >
-              <option value={0}>— Seleccionar —</option>
-              {Object.entries(facPorSede).map(([sede, facs]) => (
-                <optgroup key={sede} label={`📍 ${sede}`}>
-                  {facs.map(f => <option key={f.idFacultad} value={f.idFacultad}>{f.nombre}</option>)}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Descripción</label>
-            <input
-              value={descripcion}
-              onChange={e => setDescripcion(e.target.value)}
-              placeholder="Descripción opcional"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2a5298]"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Ubicación</label>
-            <input
-              value={ubicacion}
-              onChange={e => setUbicacion(e.target.value)}
-              placeholder="Ej: Calle Seoane esquina Murillo"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2a5298]"
-            />
-          </div>
-          {msg && <p className="text-red-500 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{msg}</p>}
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="w-full py-3 rounded-xl bg-[#1a3a6b] hover:bg-[#2a5298] text-white font-semibold text-sm transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Creando...' : 'Crear Portón'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 export default function Portones() {
@@ -270,10 +169,11 @@ export default function Portones() {
       )}
 
       {showCrear && (
-        <ModalCrear
+        <ModalPorton
+          ingreso={null}
           facultades={facultades}
           onClose={() => setShowCrear(false)}
-          onSave={async () => {
+          onGuardado={async () => {
             await refetch()
             showToast('Portón creado correctamente.')
           }}
