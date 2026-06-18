@@ -208,7 +208,7 @@ class Command(BaseCommand):
                     creados += 1
                     continue
 
-                RegistroIngreso.objects.create(
+                reg = RegistroIngreso.objects.create(
                     token=None,
                     ingreso=ingreso,
                     guardia=guardia,
@@ -226,8 +226,9 @@ class Command(BaseCommand):
                     ci_logistico=ci_log,
                     motivo_logistico=motivo_log,
                     acceso_permitido=True,
-                    fecha_hora=fecha_hora,
                 )
+                # auto_now_add no permite fijar fecha_hora en create()
+                RegistroIngreso.objects.filter(pk=reg.pk).update(fecha_hora=fecha_hora)
                 creados += 1
 
         if options["dry_run"]:
