@@ -78,6 +78,17 @@ export const PANEL_PORTON_ADMIN_QUERY = gql`
   }
 `
 
+export const BUSCAR_LOGISTICO_SALIDA_QUERY = gql`
+  query BuscarLogisticoSalida($ci: String!, $idIngreso: Int!) {
+    buscarLogisticoSalida(ci: $ci, idIngreso: $idIngreso) {
+      encontrado
+      nombre
+      motivo
+      mensaje
+    }
+  }
+`
+
 export const LISTAR_REGISTROS_QUERY = gql`
   query ListarRegistros(
     $fechaInicio: Date $fechaFin: Date $idFacultad: Int $tipoPersona: String

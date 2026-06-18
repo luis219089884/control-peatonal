@@ -564,8 +564,25 @@ class AccesoMutation:
 
             ingreso = operador.ingreso
 
-            from accesos.utils import obtener_sede_de_ingreso
+            from accesos.utils import (
+                esta_adentro_logistico,
+                obtener_sede_de_ingreso,
+            )
             sede_obj = obtener_sede_de_ingreso(ingreso)
+            if not sede_obj:
+                return _error_log("Este portón no tiene sede asignada.")
+
+            ci_norm = ci.strip()
+            if tipo_movimiento == "entrada":
+                if esta_adentro_logistico(ci_norm, sede_obj.id_sede):
+                    return _error_log(
+                        "Esta persona ya tiene un ingreso activo en la sede. Registre su salida."
+                    )
+            else:
+                if not esta_adentro_logistico(ci_norm, sede_obj.id_sede):
+                    return _error_log(
+                        "No hay registro de entrada activo para este CI en la sede."
+                    )
 
             RegistroIngreso.objects.create(
                 token=None,

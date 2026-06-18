@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useMutation } from '@apollo/client'
+import { useMutation, useLazyQuery } from '@apollo/client'
 import {
   VALIDAR_QR_MUTATION,
   REGISTRAR_ACCESO_MANUAL_MUTATION,
   REGISTRAR_ACCESO_LOGISTICO_MUTATION,
 } from '../../graphql/mutations'
+import { BUSCAR_LOGISTICO_SALIDA_QUERY } from '../../graphql/queries'
 import LoginBackground from '../LoginBackground'
 import Badge from '../ui/Badge'
 import LoadingSpinner from '../ui/LoadingSpinner'
@@ -134,6 +135,27 @@ function ModalManual({
 
 const MOTIVOS = ['Delivery', 'Proveedor', 'Mantenimiento', 'Mensajería', 'Visita rápida', 'Otro']
 
+function parseMotivoGuardado(motivo: string): { select: string; otro: string } {
+  const m = motivo.trim()
+  if (m.startsWith('Otro: ')) {
+    return { select: 'Otro', otro: m.slice(6).trim() }
+  }
+  if (MOTIVOS.includes(m)) {
+    return { select: m, otro: '' }
+  }
+  if (m) {
+    return { select: 'Otro', otro: m }
+  }
+  return { select: MOTIVOS[0], otro: '' }
+}
+
+function motivoParaEnvio(select: string, otro: string): string {
+  if (select === 'Otro') {
+    return `Otro: ${otro.trim()}`
+  }
+  return select
+}
+
 function ModalLogistico({
   idIngreso, onClose, onResult,
 }: {
@@ -144,21 +166,95 @@ function ModalLogistico({
   const [ci, setCi] = useState('')
   const [nombre, setNombre] = useState('')
   const [motivo, setMotivo] = useState(MOTIVOS[0])
+  const [motivoOtro, setMotivoOtro] = useState('')
   const [mov, setMov] = useState<'entrada' | 'salida'>('entrada')
   const [error, setError] = useState('')
+  const [hintSalida, setHintSalida] = useState('')
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [registrar, { loading }] = useMutation(REGISTRAR_ACCESO_LOGISTICO_MUTATION)
+  const [buscarSalida, { loading: buscando }] = useLazyQuery(BUSCAR_LOGISTICO_SALIDA_QUERY, {
+    fetchPolicy: 'network-only',
+  })
+
+  const buscarPorCi = useCallback((ciVal: string) => {
+    const trimmed = ciVal.trim()
+    if (!trimmed || trimmed.length < 3) {
+      setHintSalida('')
+      return
+    }
+    buscarSalida({ variables: { ci: trimmed, idIngreso } })
+      .then(({ data }) => {
+        const r = data?.buscarLogisticoSalida
+        if (!r) return
+        if (r.encontrado) {
+          setNombre(r.nombre ?? '')
+          const parsed = parseMotivoGuardado(r.motivo ?? '')
+          setMotivo(parsed.select)
+          setMotivoOtro(parsed.otro)
+          setHintSalida('Datos cargados del ingreso. Puede editarlos si es necesario.')
+          setError('')
+        } else {
+          setHintSalida('')
+          if (trimmed.length >= 5) {
+            setError(r.mensaje ?? 'No se encontró ingreso activo para este CI.')
+          }
+        }
+      })
+      .catch(() => setHintSalida(''))
+  }, [buscarSalida, idIngreso])
+
+  useEffect(() => {
+    if (mov !== 'salida') {
+      setHintSalida('')
+      return
+    }
+    if (lookupTimer.current) clearTimeout(lookupTimer.current)
+    lookupTimer.current = setTimeout(() => buscarPorCi(ci), 450)
+    return () => {
+      if (lookupTimer.current) clearTimeout(lookupTimer.current)
+    }
+  }, [ci, mov, buscarPorCi])
+
+  const handleMovChange = (nuevo: 'entrada' | 'salida') => {
+    setMov(nuevo)
+    setError('')
+    setHintSalida('')
+    if (nuevo === 'entrada') {
+      setNombre('')
+      setMotivo(MOTIVOS[0])
+      setMotivoOtro('')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!ci.trim() || !nombre.trim()) { setError('CI y nombre son requeridos.'); return }
+    if (!ci.trim() || !nombre.trim()) {
+      setError('CI y nombre son requeridos.')
+      return
+    }
+    if (motivo === 'Otro' && !motivoOtro.trim()) {
+      setError('Describe el motivo de la visita.')
+      return
+    }
+    const motivoFinal = motivoParaEnvio(motivo, motivoOtro)
     setError('')
     try {
       const { data } = await registrar({
-        variables: { ci: ci.trim(), nombreCompleto: nombre.trim(), motivo, tipoMovimiento: mov, idIngreso },
+        variables: {
+          ci: ci.trim(),
+          nombreCompleto: nombre.trim(),
+          motivo: motivoFinal,
+          tipoMovimiento: mov,
+          idIngreso,
+        },
       })
       const r = data?.registrarAccesoLogistico
+      if (r?.resultado !== 'REGISTRADO') {
+        setError(r?.mensaje ?? 'No se pudo registrar.')
+        return
+      }
       onResult({
-        resultado: r?.resultado === 'REGISTRADO' ? 'PERMITIDO' : 'RECHAZADO',
+        resultado: 'PERMITIDO',
         mensaje: r?.mensaje ?? '',
         nombre: r?.nombre,
         tipoPersona: 'logistico',
@@ -178,38 +274,98 @@ function ModalLogistico({
           <button type="button" onClick={onClose} className="text-white/40 hover:text-white text-xl">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <p className="text-white/40 text-xs">
+            {mov === 'salida'
+              ? 'Ingresa el CI: el sistema cargará nombre y motivo del ingreso (editable).'
+              : 'Para visitantes, delivery y proveedores sin cuenta en el sistema.'}
+          </p>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wide">CI</label>
-              <input value={ci} onChange={e => setCi(e.target.value)} placeholder="Carnet"
-                className={INPUT_MODAL + ' py-2.5 text-sm'} autoComplete="off" />
+              <input
+                value={ci}
+                onChange={e => { setCi(e.target.value); setError('') }}
+                placeholder="Carnet"
+                className={INPUT_MODAL + ' py-2.5 text-sm'}
+                autoComplete="off"
+              />
+              {mov === 'salida' && buscando && (
+                <p className="text-xs text-cyan-400/70 mt-1">Buscando...</p>
+              )}
             </div>
             <div>
               <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wide">Motivo</label>
-              <select value={motivo} onChange={e => setMotivo(e.target.value)} className={SELECT_MODAL}>
+              <select
+                value={motivo}
+                onChange={e => {
+                  setMotivo(e.target.value)
+                  if (e.target.value !== 'Otro') setMotivoOtro('')
+                }}
+                className={SELECT_MODAL}
+                disabled={mov === 'salida' && buscando}
+              >
                 {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
           </div>
+
+          {motivo === 'Otro' && (
+            <div>
+              <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wide">
+                Detalle del motivo *
+              </label>
+              <input
+                value={motivoOtro}
+                onChange={e => setMotivoOtro(e.target.value)}
+                placeholder="Ej.: Visita a su hermano (estudiante)"
+                className={INPUT_MODAL}
+                autoComplete="off"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wide">Nombre completo</label>
-            <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Apellidos y nombres"
-              className={INPUT_MODAL} autoComplete="off" />
+            <input
+              value={nombre}
+              onChange={e => setNombre(e.target.value)}
+              placeholder="Apellidos y nombres"
+              className={INPUT_MODAL}
+              autoComplete="off"
+            />
           </div>
+
+          {hintSalida && (
+            <p className="text-xs text-cyan-300/80 bg-cyan-500/10 border border-cyan-400/20 rounded-lg px-3 py-2">
+              {hintSalida}
+            </p>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setMov('entrada')}
+            <button type="button" onClick={() => handleMovChange('entrada')}
               className={`py-3 rounded-xl text-sm font-semibold border transition-all
-                ${mov === 'entrada' ? 'bg-green-500/20 border-green-400/50 text-green-300' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                ${mov === 'entrada'
+                  ? 'bg-green-500/20 border-green-400/50 text-green-300'
+                  : 'bg-white/5 border-white/10 text-white/40'}`}>
               🚪 Entrada
             </button>
-            <button type="button" onClick={() => setMov('salida')}
+            <button type="button" onClick={() => handleMovChange('salida')}
               className={`py-3 rounded-xl text-sm font-semibold border transition-all
-                ${mov === 'salida' ? 'bg-orange-500/20 border-orange-400/50 text-orange-300' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                ${mov === 'salida'
+                  ? 'bg-orange-500/20 border-orange-400/50 text-orange-300'
+                  : 'bg-white/5 border-white/10 text-white/40'}`}>
               🏃 Salida
             </button>
           </div>
-          {error && <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
-          <button type="submit" disabled={loading}
+
+          {error && (
+            <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" disabled={loading || buscando}
             className="w-full py-3 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 font-semibold text-sm hover:bg-amber-500/30 disabled:opacity-50">
             {loading ? 'Registrando...' : 'Registrar'}
           </button>

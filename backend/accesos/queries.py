@@ -11,6 +11,7 @@ from accesos.types import (
     GuardiaAdminType,
     IngresoConGuardiaType,
     InvitadoType,
+    LogisticoSalidaLookupType,
     RegistroIngresoType,
 )
 from usuarios.utils import get_usuario_from_info
@@ -196,6 +197,59 @@ class AccesoQuery:
             sede_id=sede_id,
             guardia_asignado_nombre=guardia_nombre,
             registros_hoy=registros,
+        )
+
+    @strawberry.field
+    def buscar_logistico_salida(
+        self,
+        info,
+        ci: str,
+        id_ingreso: int,
+    ) -> LogisticoSalidaLookupType:
+        """
+        Busca datos de entrada de una persona logística por CI para autocompletar salida.
+        Solo guardias y admins operando en un portón.
+        """
+        from accesos.operador_utils import resolver_operador_acceso
+        from accesos.utils import datos_logistico_adentro, obtener_sede_de_ingreso
+
+        usuario = get_usuario_from_info(info)
+        if usuario.rol.nombre not in ("guardia", "admin"):
+            return LogisticoSalidaLookupType(
+                encontrado=False,
+                mensaje="No autorizado.",
+            )
+
+        ci = (ci or "").strip()
+        if not ci:
+            return LogisticoSalidaLookupType(
+                encontrado=False,
+                mensaje="Ingresa un CI.",
+            )
+
+        operador, err = resolver_operador_acceso(usuario, id_ingreso)
+        if err:
+            return LogisticoSalidaLookupType(encontrado=False, mensaje=err)
+
+        sede = obtener_sede_de_ingreso(operador.ingreso)
+        if not sede:
+            return LogisticoSalidaLookupType(
+                encontrado=False,
+                mensaje="Este portón no tiene sede asignada.",
+            )
+
+        datos = datos_logistico_adentro(ci, sede.id_sede)
+        if not datos:
+            return LogisticoSalidaLookupType(
+                encontrado=False,
+                mensaje="No hay registro de entrada activo para este CI en la sede.",
+            )
+
+        return LogisticoSalidaLookupType(
+            encontrado=True,
+            nombre=datos["nombre"],
+            motivo=datos["motivo"],
+            mensaje=None,
         )
 
     @strawberry.field

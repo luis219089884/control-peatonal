@@ -143,6 +143,15 @@ class AccesoLogisticoResponseType:
 
 
 @strawberry.type
+class LogisticoSalidaLookupType:
+    """Datos de una persona logística adentro, para autocompletar la salida."""
+    encontrado: bool
+    nombre: Optional[str] = None
+    motivo: Optional[str] = None
+    mensaje: Optional[str] = None
+
+
+@strawberry.type
 class GuardiaPanelType:
     nombre_completo: str
     turno: str

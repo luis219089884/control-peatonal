@@ -73,6 +73,57 @@ def esta_adentro_sede_invitado(invitado_id: int, sede_id: int) -> bool:
     return ultimo is not None and ultimo["tipo_movimiento"] == "entrada"
 
 
+def esta_adentro_logistico(ci: str, sede_id: int) -> bool:
+    """Determina si una persona logística está adentro de la sede según su CI."""
+    from accesos.models import RegistroIngreso
+    ci = (ci or "").strip()
+    if not ci:
+        return False
+    ultimo = (
+        RegistroIngreso.objects
+        .filter(
+            ci_logistico=ci,
+            sede_acceso_id=sede_id,
+            acceso_permitido=True,
+            metodo="logistico",
+            tipo_persona="logistico",
+        )
+        .order_by("-fecha_hora")
+        .values("tipo_movimiento")
+        .first()
+    )
+    return ultimo is not None and ultimo["tipo_movimiento"] == "entrada"
+
+
+def datos_logistico_adentro(ci: str, sede_id: int) -> Optional[dict]:
+    """
+    Si la persona logística está adentro de la sede, devuelve nombre y motivo
+    del registro de entrada vigente.
+    """
+    from accesos.models import RegistroIngreso
+    ci = (ci or "").strip()
+    if not ci or not esta_adentro_logistico(ci, sede_id):
+        return None
+    ultimo = (
+        RegistroIngreso.objects
+        .filter(
+            ci_logistico=ci,
+            sede_acceso_id=sede_id,
+            acceso_permitido=True,
+            metodo="logistico",
+            tipo_persona="logistico",
+        )
+        .order_by("-fecha_hora")
+        .first()
+    )
+    if not ultimo or ultimo.tipo_movimiento != "entrada":
+        return None
+    return {
+        "nombre": ultimo.nombre_completo,
+        "motivo": ultimo.motivo_logistico or "",
+    }
+
+
 def obtener_sede_de_ingreso(ingreso) -> Optional[object]:
     """
     Devuelve la sede efectiva de un portón (Ingreso).
