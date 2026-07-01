@@ -16,6 +16,7 @@ import {
 import Button from '../../components/ui/Button'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import PasswordInput from '../../components/ui/PasswordInput'
+import { PASSWORD_POLICY_HINT, passwordCumplePolitica, validarPassword } from '../../utils/passwordPolicy'
 
 export type TipoSeccion = 'estudiante' | 'docente' | 'administrativo' | 'personal_externo'
 
@@ -268,7 +269,9 @@ function ModalUsuarioForm({
   )
 
   const paso1Valido = base.nombres && base.apellidos && base.ci &&
-    (mode === 'edit' || (base.password && base.password.length >= 6))
+    (mode === 'edit'
+      ? (!base.password || passwordCumplePolitica(base.password))
+      : passwordCumplePolitica(base.password))
 
   const variablesComunes = {
     nombres:       base.nombres,
@@ -302,6 +305,19 @@ function ModalUsuarioForm({
 
   const handleGuardar = async () => {
     setError('')
+    if (mode === 'create') {
+      const errPass = validarPassword(base.password)
+      if (errPass) {
+        setError(errPass)
+        return
+      }
+    } else if (base.password) {
+      const errPass = validarPassword(base.password)
+      if (errPass) {
+        setError(errPass)
+        return
+      }
+    }
     if (tipo === 'docente') {
       const filled = docenteFacultades.filter(f => f.id_facultad)
       if (filled.length === 0) {
@@ -429,6 +445,7 @@ function ModalUsuarioForm({
                         onChange={v => setB('password', v)}
                         placeholder={mode === 'edit' ? 'Dejar vacío para no cambiar' : ''}
                       />
+                      <p className="text-xs text-gray-500 mt-1">{PASSWORD_POLICY_HINT}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">

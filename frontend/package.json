@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@apollo/client": "^3.9.0",
+    "@vladmandic/face-api": "^1.7.15",
     "graphql": "^16.8.1",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",

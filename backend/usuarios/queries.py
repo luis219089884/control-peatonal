@@ -9,15 +9,41 @@ from usuarios.models import (
     Docente,
     Estudiante,
     Facultad,
+    FotoRostro,
     PersonalExterno,
     Sede,
     Usuario,
 )
-from usuarios.types import CarreraType, FacultadType, ResponseType, SedeType, UsuarioType
+from usuarios.types import (
+    CarreraType,
+    FacultadType,
+    FotoRostroType,
+    ResponseType,
+    SedeType,
+    UsuarioType,
+)
 from usuarios.utils import get_usuario_from_info
 
 
-def _model_to_usuario_type(u: Usuario) -> UsuarioType:
+def _media_absolute_url(request, rel_path: str) -> str:
+    from django.conf import settings
+
+    path = rel_path if rel_path.startswith("/") else f"{settings.MEDIA_URL}{rel_path}"
+    return request.build_absolute_uri(path)
+
+
+def _foto_rostro_type(request, foto: FotoRostro) -> FotoRostroType:
+    return FotoRostroType(
+        angulo=foto.angulo,
+        url=_media_absolute_url(request, foto.archivo),
+        actualizado_en=foto.actualizado_en,
+    )
+
+
+def _model_to_usuario_type(u: Usuario, request=None) -> UsuarioType:
+    foto = u.foto_url
+    if request and foto and not foto.startswith("http"):
+        foto = _media_absolute_url(request, foto)
     return UsuarioType(
         id_usuario=u.id_usuario,
         tipo_usuario=u.tipo_usuario,
@@ -26,7 +52,7 @@ def _model_to_usuario_type(u: Usuario) -> UsuarioType:
         ci=u.ci,
         email=u.email,
         celular=u.celular,
-        foto_url=u.foto_url,
+        foto_url=foto,
         activo=u.activo,
         creado_en=u.creado_en,
         rol=u.rol,
@@ -39,7 +65,14 @@ class UsuarioQuery:
     @strawberry.field
     def mi_perfil(self, info) -> UsuarioType:
         usuario = get_usuario_from_info(info)
-        return _model_to_usuario_type(usuario)
+        return _model_to_usuario_type(usuario, info.context["request"])
+
+    @strawberry.field
+    def mis_fotos_rostro(self, info) -> List[FotoRostroType]:
+        usuario = get_usuario_from_info(info)
+        request = info.context["request"]
+        fotos = FotoRostro.objects.filter(usuario=usuario).order_by("angulo")
+        return [_foto_rostro_type(request, f) for f in fotos]
 
     @strawberry.field
     def mi_perfil_extendido(self, info) -> str:

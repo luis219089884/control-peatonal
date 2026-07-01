@@ -9,6 +9,16 @@ export const MI_PERFIL_QUERY = gql`
   }
 `
 
+export const MIS_FOTOS_ROSTRO_QUERY = gql`
+  query MisFotosRostro {
+    misFotosRostro {
+      angulo
+      url
+      actualizadoEn
+    }
+  }
+`
+
 export const MI_PERFIL_EXTENDIDO_QUERY = gql`
   query MiPerfilExtendido {
     miPerfilExtendido

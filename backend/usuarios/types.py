@@ -136,6 +136,10 @@ class AuthType:
     message: str
     needs2fa: bool = False
     partial_token: Optional[str] = None
+    cuenta_bloqueada: bool = False
+    segundos_bloqueo: Optional[int] = None
+    intentos_restantes: Optional[int] = None
+    max_intentos: int = 5
 
 
 @strawberry.type
@@ -158,6 +162,39 @@ class Verificar2FAResponseType:
 @strawberry.type
 class ResponseType:
     success: bool
+    message: str
+
+
+@strawberry.type
+class FotoRostroType:
+    angulo: str
+    url: str
+    actualizado_en: datetime
+
+
+@strawberry.type
+class RegistroRostroResponseType:
+    ok: bool
+    message: str
+    fotos: list[FotoRostroType]
+
+
+@strawberry.type
+class FotoPerfilResponseType:
+    ok: bool
+    message: str
+    foto_url: Optional[str] = None
+
+
+@strawberry.input
+class FotoRostroInput:
+    angulo: str
+    imagen_base64: str
+
+
+@strawberry.type
+class PasswordResetResponseType:
+    ok: bool
     message: str
 
 

@@ -1,4 +1,6 @@
+import base64
 import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
@@ -11,13 +13,52 @@ JWT_SECRET = config("JWT_SECRET", default="uagrm-jwt-secret-changeme")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = config("JWT_EXPIRATION_HOURS", cast=int, default=8)
 
+_PBKDF2_ITERATIONS = 260_000
+_PBKDF2_PREFIX = "pbkdf2_sha256$"
+
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash unidireccional PBKDF2-SHA256 (no reversible)."""
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        _PBKDF2_ITERATIONS,
+    )
+    digest = base64.b64encode(dk).decode("ascii")
+    return f"{_PBKDF2_PREFIX}{_PBKDF2_ITERATIONS}${salt}${digest}"
+
+
+def _verify_pbkdf2(password: str, stored: str) -> bool:
+    try:
+        _, iterations_s, salt, digest = stored.split("$", 3)
+        iterations = int(iterations_s)
+        dk = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
+            iterations,
+        )
+        return secrets.compare_digest(base64.b64encode(dk).decode("ascii"), digest)
+    except (ValueError, TypeError):
+        return False
+
+
+def _verify_legacy_sha256(password: str, stored: str) -> bool:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest() == stored
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return hash_password(password) == hashed
+    if not hashed:
+        return False
+    if hashed.startswith(_PBKDF2_PREFIX):
+        return _verify_pbkdf2(password, hashed)
+    return _verify_legacy_sha256(password, hashed)
+
+
+def password_needs_rehash(hashed: str) -> bool:
+    return not hashed.startswith(_PBKDF2_PREFIX)
 
 
 def usuario_puede_registrar_invitados(usuario: Usuario) -> bool:

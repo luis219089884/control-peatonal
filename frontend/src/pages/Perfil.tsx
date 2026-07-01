@@ -1,17 +1,26 @@
-import { useState } from 'react'
+import { Navigate, useParams } from 'react-router-dom'
 import { useQuery } from '@apollo/client'
 import { MI_PERFIL_QUERY, MI_PERFIL_EXTENDIDO_QUERY, MIS_REGISTROS_QUERY } from '../graphql/queries'
 import { useAuth } from '../context/AuthContext'
 import Badge from '../components/ui/Badge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import Seguridad2FA from '../components/Seguridad2FA'
+import RegistroRostro from '../components/rostro/RegistroRostro'
+import SubirFotoPerfil from '../components/perfil/SubirFotoPerfil'
+import {
+  seccionPerfilPermitida,
+  type SeccionPerfil,
+} from '../utils/perfilMenu'
 
-const TABS = [
-  { id: 'datos',      label: '📋 Datos Personales' },
-  { id: 'facultad',   label: '🏛️ Mi Facultad/Carrera' },
-  { id: 'ingresos',   label: '📅 Mis Ingresos' },
-  { id: 'seguridad',  label: '🔐 Seguridad' },
-]
+const SECCIONES_VALIDAS: SeccionPerfil[] = ['datos', 'rostro', 'facultad', 'ingresos', 'seguridad']
+
+const TITULOS: Record<SeccionPerfil, string> = {
+  datos: 'Mi Perfil',
+  rostro: 'Registro de Rostro',
+  facultad: 'Mi Facultad/Carrera',
+  ingresos: 'Mis Ingresos',
+  seguridad: 'Seguridad',
+}
 
 function Campo({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -30,13 +39,25 @@ function Campo({ label, value }: { label: string; value?: string | null }) {
 }
 
 export default function Perfil() {
-  const [tab, setTab] = useState('datos')
+  const { seccion: seccionParam } = useParams<{ seccion?: string }>()
+  const seccion: SeccionPerfil = (seccionParam as SeccionPerfil) || 'datos'
   const { user } = useAuth()
 
   const { data, loading } = useQuery(MI_PERFIL_QUERY)
   const { data: extData, loading: extLoading } = useQuery(MI_PERFIL_EXTENDIDO_QUERY)
-  const { data: regData, loading: loadingReg } = useQuery(MIS_REGISTROS_QUERY, { variables: { limite: 20 } })
+  const { data: regData, loading: loadingReg } = useQuery(MIS_REGISTROS_QUERY, {
+    variables: { limite: 20 },
+    skip: seccion !== 'ingresos',
+  })
   const misRegistros = regData?.misRegistros ?? []
+
+  if (seccionParam && !SECCIONES_VALIDAS.includes(seccionParam as SeccionPerfil)) {
+    return <Navigate to="/perfil" replace />
+  }
+
+  if (seccion !== 'datos' && !seccionPerfilPermitida(seccion, user)) {
+    return <Navigate to="/perfil" replace />
+  }
 
   if (loading) return <div className="flex justify-center mt-20"><LoadingSpinner text="Cargando perfil..." /></div>
 
@@ -44,44 +65,22 @@ export default function Perfil() {
   const ext = extData?.miPerfilExtendido ? JSON.parse(extData.miPerfilExtendido) : null
   if (!u) return null
 
-  const iniciales = `${u.nombres?.[0] || ''}${u.apellidos?.[0] || ''}`.toUpperCase()
-
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      {/* Encabezado */}
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold text-[#1a3a6b]">Mi Perfil</h1>
+        <h1 className="text-2xl font-bold text-[#1a3a6b]">{TITULOS[seccion]}</h1>
         <Badge tipo={u.tipoUsuario} />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-5 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-px
-              ${tab === t.id
-                ? 'border-[#1a3a6b] text-[#1a3a6b]'
-                : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* DATOS PERSONALES */}
-      {tab === 'datos' && (
+      {seccion === 'datos' && (
         <div className="bg-white rounded-xl shadow-card p-6 space-y-6">
-          {/* Foto + nombre */}
-          <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-xl bg-[#1a3a6b] flex items-center justify-center
-              text-white text-2xl font-bold shadow-md flex-shrink-0">
-              {u.fotoUrl
-                ? <img src={u.fotoUrl} alt="foto" className="w-full h-full object-cover rounded-xl" />
-                : iniciales}
-            </div>
-            <div>
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+            <SubirFotoPerfil
+              nombres={u.nombres}
+              apellidos={u.apellidos}
+              fotoUrl={u.fotoUrl}
+            />
+            <div className="text-center sm:text-left">
               <p className="text-xl font-bold text-gray-900">{u.apellidos} {u.nombres}</p>
               <p className="text-sm text-gray-500 mt-0.5">CI: {u.ci}</p>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -92,7 +91,6 @@ export default function Perfil() {
 
           <hr className="border-gray-100" />
 
-          {/* Fila 1 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Campo label="Nro. Registro" value={ext?.nro_registro} />
             <div className="md:col-span-2">
@@ -101,14 +99,12 @@ export default function Perfil() {
             <Campo label="CI" value={u.ci} />
           </div>
 
-          {/* Fila 2 */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Campo label="Correo Electrónico" value={u.email} />
             <Campo label="Celular" value={u.celular} />
             <Campo label="Tipo de Usuario" value={u.tipoUsuario?.replace('_', ' ')} />
           </div>
 
-          {/* Fila 3 - datos extendidos si existen */}
           {ext && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {ext.modalidad_ingreso && <Campo label="Modalidad Ingreso" value={ext.modalidad_ingreso} />}
@@ -125,7 +121,6 @@ export default function Perfil() {
             </div>
           )}
 
-          {/* Estado */}
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold
               ${u.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -136,8 +131,11 @@ export default function Perfil() {
         </div>
       )}
 
-      {/* MIS INGRESOS */}
-      {tab === 'ingresos' && (
+      {seccion === 'rostro' && (
+        <RegistroRostro />
+      )}
+
+      {seccion === 'ingresos' && (
         <div className="bg-white rounded-xl shadow-card overflow-hidden">
           {loadingReg ? (
             <div className="flex justify-center py-12"><LoadingSpinner text="Cargando registros..." /></div>
@@ -181,15 +179,13 @@ export default function Perfil() {
         </div>
       )}
 
-      {/* SEGURIDAD — 2FA */}
-      {tab === 'seguridad' && (
+      {seccion === 'seguridad' && (
         <div className="max-w-lg">
           <Seguridad2FA />
         </div>
       )}
 
-      {/* FACULTAD / CARRERA */}
-      {tab === 'facultad' && (
+      {seccion === 'facultad' && (
         <div className="space-y-4">
           {extLoading ? (
             <div className="flex justify-center mt-8"><LoadingSpinner text="Cargando..." /></div>

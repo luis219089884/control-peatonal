@@ -4,10 +4,13 @@ import { client } from './lib/apolloClient'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import Login from './pages/Login'
+import OlvidePassword from './pages/OlvidePassword'
+import RecuperarPassword from './pages/RecuperarPassword'
 import Perfil from './pages/Perfil'
 import GenerarQR from './pages/GenerarQR'
 import PanelGuardia from './pages/PanelGuardia'
 import RegistrarInvitado from './pages/RegistrarInvitado'
+import CambiarPassword from './pages/CambiarPassword'
 import Dashboard from './pages/admin/Dashboard'
 import { UsuariosLayout, UsuariosRedirect, UsuariosSeccion } from './pages/admin/Usuarios'
 import Empresas from './pages/admin/Empresas'
@@ -34,10 +37,12 @@ export default function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/olvide-password" element={<OlvidePassword />} />
+            <Route path="/recuperar-password" element={<RecuperarPassword />} />
             <Route path="/"      element={<RootRedirect />} />
 
             {/* Rutas usuario */}
-            <Route path="/perfil" element={
+            <Route path="/perfil/:seccion?" element={
               <ProtectedRoute roles={['usuario','admin']}>
                 <Perfil />
               </ProtectedRoute>
@@ -50,6 +55,11 @@ export default function App() {
             <Route path="/registrar-invitado" element={
               <ProtectedRoute roles={['usuario']}>
                 <RegistrarInvitado />
+              </ProtectedRoute>
+            } />
+            <Route path="/cambiar-password" element={
+              <ProtectedRoute roles={['usuario', 'admin']}>
+                <CambiarPassword />
               </ProtectedRoute>
             } />
 

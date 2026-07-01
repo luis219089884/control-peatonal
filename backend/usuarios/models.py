@@ -124,6 +124,9 @@ class Usuario(models.Model):
     telefono = models.CharField(max_length=20, null=True, blank=True)
     password_hash = models.CharField(max_length=255)
     foto_url = models.CharField(max_length=500, null=True, blank=True)
+    rostro_descriptor = models.JSONField(null=True, blank=True)
+    intentos_fallidos_login = models.PositiveSmallIntegerField(default=0)
+    bloqueado_hasta = models.DateTimeField(null=True, blank=True)
     activo = models.BooleanField(default=True)
     totp_secret = models.CharField(max_length=64, null=True, blank=True)
     totp_activo = models.BooleanField(default=False)
@@ -137,6 +140,58 @@ class Usuario(models.Model):
 
     def __str__(self) -> str:
         return f"{self.apellidos} {self.nombres}"
+
+
+class FotoRostro(models.Model):
+    """Fotos de referencia para reconocimiento facial (enrolamiento)."""
+
+    ANGULO_CHOICES = (
+        ("frente", "Frente"),
+        ("izquierda", "Izquierda"),
+        ("derecha", "Derecha"),
+    )
+
+    id_foto = models.AutoField(primary_key=True)
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.CASCADE, related_name="fotos_rostro"
+    )
+    angulo = models.CharField(max_length=20, choices=ANGULO_CHOICES)
+    archivo = models.CharField(max_length=500)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Foto rostro"
+        verbose_name_plural = "Fotos rostro"
+        unique_together = ("usuario", "angulo")
+
+    def __str__(self) -> str:
+        return f"{self.usuario_id} — {self.angulo}"
+
+
+class TokenRecuperacionPassword(models.Model):
+    """Token de un solo uso para restablecer contraseña vía email."""
+
+    id_token = models.AutoField(primary_key=True)
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.CASCADE, related_name="tokens_recuperacion"
+    )
+    token_hash = models.CharField(max_length=64, db_index=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    expira_en = models.DateTimeField()
+    usado = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Token recuperación contraseña"
+        verbose_name_plural = "Tokens recuperación contraseña"
+        indexes = [
+            models.Index(fields=["usuario", "creado_en"]),
+            models.Index(fields=["token_hash"]),
+        ]
+
+    def __str__(self) -> str:
+        estado = "usado" if self.usado else "activo"
+        return f"Reset {self.usuario_id} — {estado}"
 
 
 class Estudiante(models.Model):

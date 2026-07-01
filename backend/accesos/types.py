@@ -134,6 +134,25 @@ class AccesoManualResponseType:
 
 
 @strawberry.type
+class CandidatoRostroType:
+    id_usuario: int
+    nombres: str
+    apellidos: str
+    ci: str
+    tipo_usuario: str
+    foto_url: Optional[str]
+    confianza: float
+    distancia: float
+
+
+@strawberry.type
+class BuscarRostroResponseType:
+    ok: bool
+    message: str
+    candidatos: list[CandidatoRostroType]
+
+
+@strawberry.type
 class AccesoLogisticoResponseType:
     resultado: str          # "REGISTRADO" | "ERROR"
     mensaje: str

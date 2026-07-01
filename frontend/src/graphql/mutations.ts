@@ -3,7 +3,18 @@ import { gql } from '@apollo/client'
 export const LOGIN_MUTATION = gql`
   mutation Login($ci: String!, $password: String!, $tipoUsuario: String!) {
     login(ci: $ci, password: $password, tipoUsuario: $tipoUsuario) {
-      token tipoUsuario rol nombres apellidos message needs2fa partialToken
+      token
+      tipoUsuario
+      rol
+      nombres
+      apellidos
+      message
+      needs2fa
+      partialToken
+      cuentaBloqueada
+      segundosBloqueo
+      intentosRestantes
+      maxIntentos
     }
   }
 `
@@ -177,6 +188,82 @@ export const CAMBIAR_PASSWORD_MUTATION = gql`
     cambiarPassword(passwordActual: $passwordActual, passwordNuevo: $passwordNuevo) {
       success
       message
+    }
+  }
+`
+
+export const SOLICITAR_RECUPERACION_PASSWORD_MUTATION = gql`
+  mutation SolicitarRecuperacionPassword($ci: String!, $email: String!, $tipoUsuario: String!) {
+    solicitarRecuperacionPassword(ci: $ci, email: $email, tipoUsuario: $tipoUsuario) {
+      ok
+      message
+    }
+  }
+`
+
+export const RESTABLECER_PASSWORD_MUTATION = gql`
+  mutation RestablecerPassword($token: String!, $passwordNuevo: String!) {
+    restablecerPassword(token: $token, passwordNuevo: $passwordNuevo) {
+      ok
+      message
+    }
+  }
+`
+
+export const ACTUALIZAR_FOTO_PERFIL_MUTATION = gql`
+  mutation ActualizarFotoPerfil($imagenBase64: String!) {
+    actualizarFotoPerfil(imagenBase64: $imagenBase64) {
+      ok
+      message
+      fotoUrl
+    }
+  }
+`
+
+export const REGISTRAR_FOTOS_ROSTRO_MUTATION = gql`
+  mutation RegistrarFotosRostro($fotos: [FotoRostroInput!]!, $descriptorPromedio: [Float!]) {
+    registrarFotosRostro(fotos: $fotos, descriptorPromedio: $descriptorPromedio) {
+      ok
+      message
+      fotos {
+        angulo
+        url
+        actualizadoEn
+      }
+    }
+  }
+`
+
+export const BUSCAR_CANDIDATOS_ROSTRO_MUTATION = gql`
+  mutation BuscarCandidatosRostro($descriptor: [Float!]!, $idIngreso: Int!) {
+    buscarCandidatosRostro(descriptor: $descriptor, idIngreso: $idIngreso) {
+      ok
+      message
+      candidatos {
+        idUsuario
+        nombres
+        apellidos
+        ci
+        tipoUsuario
+        fotoUrl
+        confianza
+        distancia
+      }
+    }
+  }
+`
+
+export const CONFIRMAR_ACCESO_ROSTRO_MUTATION = gql`
+  mutation ConfirmarAccesoRostro($idUsuario: Int!, $idIngreso: Int!) {
+    confirmarAccesoRostro(idUsuario: $idUsuario, idIngreso: $idIngreso) {
+      resultado
+      mensaje
+      nombre
+      ci
+      tipoPersona
+      tipoMovimiento
+      sede
+      facultad
     }
   }
 `

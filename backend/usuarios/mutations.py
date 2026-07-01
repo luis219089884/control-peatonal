@@ -12,6 +12,7 @@ from usuarios.models import (
     Estudiante,
     EmpresaExterna,
     Facultad,
+    FotoRostro,
     PersonalExterno,
     Rol,
     Sede,
@@ -21,8 +22,41 @@ from usuarios.types import (
     Activar2FAType,
     AuthType,
     CrearUsuarioResponseType,
+    FotoPerfilResponseType,
+    FotoRostroInput,
+    FotoRostroType,
+    PasswordResetResponseType,
+    RegistroRostroResponseType,
     ResponseType,
     Verificar2FAResponseType,
+)
+from usuarios.password_policy import (
+    MAX_LOGIN_ATTEMPTS,
+    LOCKOUT_SECONDS,
+    intentos_restantes_login,
+    limpiar_bloqueo_login,
+    mensaje_cuenta_bloqueada,
+    registrar_fallo_login,
+    segundos_bloqueo_restante,
+    validar_politica_password,
+)
+from usuarios.email_reset import enviar_email_recuperacion_password
+from usuarios.face_storage import (
+    ANGULOS_ROSTRO,
+    eliminar_archivo_rostro,
+    guardar_foto_perfil,
+    guardar_foto_rostro,
+)
+from usuarios.face_matching import validar_descriptor
+from usuarios.password_reset import (
+    MENSAJE_SOLICITUD_GENERICO,
+    MAX_SOLICITUDES_POR_HORA,
+    RESET_TOKEN_MINUTES,
+    buscar_usuario_recuperacion,
+    crear_solicitud_reset,
+    marcar_token_usado,
+    solicitudes_recientes,
+    validar_token_recuperacion,
 )
 from usuarios.utils import (
     decode_partial_token,
@@ -30,6 +64,7 @@ from usuarios.utils import (
     generate_token,
     get_usuario_from_info,
     hash_password,
+    password_needs_rehash,
     verify_password,
 )
 
@@ -135,8 +170,64 @@ def _sync_vinculos_docente(
 
 
 def _auth_vacio(**kwargs) -> AuthType:
-    return AuthType(token="", tipo_usuario="", rol="", nombres="", apellidos="",
-                    needs2fa=False, partial_token=None, **kwargs)
+    defaults = {
+        "cuenta_bloqueada": False,
+        "segundos_bloqueo": None,
+        "intentos_restantes": None,
+        "max_intentos": MAX_LOGIN_ATTEMPTS,
+    }
+    defaults.update(kwargs)
+    return AuthType(
+        token="",
+        tipo_usuario="",
+        rol="",
+        nombres="",
+        apellidos="",
+        needs2fa=False,
+        partial_token=None,
+        **defaults,
+    )
+
+
+def _auth_bloqueado(usuario, message: str | None = None) -> AuthType:
+    segundos = segundos_bloqueo_restante(usuario) or LOCKOUT_SECONDS
+    return _auth_vacio(
+        message=message or mensaje_cuenta_bloqueada(usuario) or "Cuenta bloqueada.",
+        cuenta_bloqueada=True,
+        segundos_bloqueo=segundos,
+        intentos_restantes=0,
+    )
+
+
+def _auth_fallo_credenciales(usuario) -> AuthType:
+    segundos = segundos_bloqueo_restante(usuario)
+    if segundos is not None:
+        return _auth_bloqueado(
+            usuario,
+            f"Demasiados intentos fallidos. Cuenta bloqueada por {LOCKOUT_SECONDS} segundos.",
+        )
+    restantes = intentos_restantes_login(usuario)
+    if restantes <= 1:
+        aviso = "Último intento antes del bloqueo temporal."
+    else:
+        aviso = f"Te quedan {restantes} intento(s) antes del bloqueo."
+    return _auth_vacio(
+        message=f"CI o contraseña incorrectos. {aviso}",
+        intentos_restantes=restantes,
+    )
+
+
+_LOGIN_FAIL_MSG = "CI o contraseña incorrectos."
+
+
+def _aplicar_login_exitoso(usuario: Usuario, password_plano: str) -> None:
+    usuario.intentos_fallidos_login = 0
+    usuario.bloqueado_hasta = None
+    updates = ["intentos_fallidos_login", "bloqueado_hasta"]
+    if password_needs_rehash(usuario.password_hash):
+        usuario.password_hash = hash_password(password_plano)
+        updates.append("password_hash")
+    usuario.save(update_fields=updates)
 
 
 @strawberry.type
@@ -153,13 +244,21 @@ class UsuarioMutation:
                     ci=ci.strip(), tipo_usuario=tipo_usuario
                 )
             except Usuario.DoesNotExist:
-                return _auth_vacio(message="CI o contraseña incorrectos.")
+                return _auth_vacio(message=_LOGIN_FAIL_MSG)
+
+            bloqueo = mensaje_cuenta_bloqueada(usuario)
+            if bloqueo:
+                return _auth_bloqueado(usuario, bloqueo)
 
             if not usuario.activo:
                 return _auth_vacio(message="Usuario desactivado. Contacte al administrador.")
 
             if not verify_password(password, usuario.password_hash):
-                return _auth_vacio(message="CI o contraseña incorrectos.")
+                registrar_fallo_login(usuario)
+                usuario.refresh_from_db(fields=["intentos_fallidos_login", "bloqueado_hasta"])
+                return _auth_fallo_credenciales(usuario)
+
+            _aplicar_login_exitoso(usuario, password)
 
             rol_nombre = usuario.rol.nombre
 
@@ -209,6 +308,7 @@ class UsuarioMutation:
             if not totp.verify(codigo.strip(), valid_window=1):
                 return Verificar2FAResponseType(**{**_vacio.__dict__, "message": "Código incorrecto. Intente nuevamente."})
 
+            limpiar_bloqueo_login(usuario)
             token = generate_token(usuario)
             return Verificar2FAResponseType(
                 token=token,
@@ -356,8 +456,11 @@ class UsuarioMutation:
 
             if not ci or len(ci.strip()) < 6:
                 return CrearUsuarioResponseType(ok=False, message="El CI debe tener al menos 6 caracteres.")
-            if not password or len(password) < 6:
-                return CrearUsuarioResponseType(ok=False, message="La contraseña debe tener al menos 6 caracteres.")
+            if not password:
+                return CrearUsuarioResponseType(ok=False, message="La contraseña es requerida.")
+            ok_pass, msg_pass = validar_politica_password(password)
+            if not ok_pass:
+                return CrearUsuarioResponseType(ok=False, message=msg_pass)
             if not nombres or not nombres.strip():
                 return CrearUsuarioResponseType(ok=False, message="El nombre es requerido.")
             if not apellidos or not apellidos.strip():
@@ -530,8 +633,10 @@ class UsuarioMutation:
 
             if not ci or len(ci.strip()) < 6:
                 return CrearUsuarioResponseType(ok=False, message="El CI debe tener al menos 6 caracteres.")
-            if password and len(password) < 6:
-                return CrearUsuarioResponseType(ok=False, message="La contraseña debe tener al menos 6 caracteres.")
+            if password:
+                ok_pass, msg_pass = validar_politica_password(password)
+                if not ok_pass:
+                    return CrearUsuarioResponseType(ok=False, message=msg_pass)
             if not nombres or not nombres.strip():
                 return CrearUsuarioResponseType(ok=False, message="El nombre es requerido.")
             if not apellidos or not apellidos.strip():
@@ -762,13 +867,270 @@ class UsuarioMutation:
     def cambiar_password(self, info, password_actual: str, password_nuevo: str) -> ResponseType:
         try:
             usuario = get_usuario_from_info(info)
-            if not password_nuevo or len(password_nuevo) < 6:
-                return ResponseType(success=False, message="La nueva contraseña debe tener al menos 6 caracteres.")
+            ok_pass, msg_pass = validar_politica_password(password_nuevo)
+            if not ok_pass:
+                return ResponseType(success=False, message=msg_pass)
             if not verify_password(password_actual, usuario.password_hash):
                 return ResponseType(success=False, message="La contraseña actual es incorrecta.")
+            if verify_password(password_nuevo, usuario.password_hash):
+                return ResponseType(success=False, message="La nueva contraseña debe ser diferente a la actual.")
             usuario.password_hash = hash_password(password_nuevo)
-            usuario.save()
+            usuario.intentos_fallidos_login = 0
+            usuario.bloqueado_hasta = None
+            usuario.save(update_fields=["password_hash", "intentos_fallidos_login", "bloqueado_hasta"])
             return ResponseType(success=True, message="Contraseña actualizada correctamente.")
+        except Exception as e:
+            return ResponseType(success=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def registrar_fotos_rostro(
+        self,
+        info,
+        fotos: List[FotoRostroInput],
+        descriptor_promedio: Optional[List[float]] = None,
+    ) -> RegistroRostroResponseType:
+        """Enrolamiento facial fase 1: frente, izquierda y derecha."""
+        try:
+            usuario = get_usuario_from_info(info)
+            if usuario.tipo_usuario == "guardia":
+                return RegistroRostroResponseType(
+                    ok=False,
+                    message="Los guardias no requieren registro de rostro.",
+                    fotos=[],
+                )
+            if not fotos:
+                return RegistroRostroResponseType(
+                    ok=False, message="Debe enviar al menos una foto.", fotos=[]
+                )
+
+            por_angulo: dict[str, str] = {}
+            for item in fotos:
+                angulo = (item.angulo or "").strip().lower()
+                if angulo not in ANGULOS_ROSTRO:
+                    return RegistroRostroResponseType(
+                        ok=False,
+                        message=f"Ángulo inválido: {item.angulo}",
+                        fotos=[],
+                    )
+                if angulo in por_angulo:
+                    return RegistroRostroResponseType(
+                        ok=False,
+                        message=f"Ángulo duplicado: {angulo}",
+                        fotos=[],
+                    )
+                por_angulo[angulo] = item.imagen_base64
+
+            faltantes = [a for a in ANGULOS_ROSTRO if a not in por_angulo]
+            if faltantes:
+                return RegistroRostroResponseType(
+                    ok=False,
+                    message=f"Faltan fotos: {', '.join(faltantes)}",
+                    fotos=[],
+                )
+
+            request = info.context["request"]
+            guardadas: list[FotoRostroType] = []
+
+            for angulo in ANGULOS_ROSTRO:
+                try:
+                    rel_path = guardar_foto_rostro(
+                        usuario.id_usuario, angulo, por_angulo[angulo]
+                    )
+                except ValueError as exc:
+                    return RegistroRostroResponseType(
+                        ok=False, message=str(exc), fotos=[]
+                    )
+
+                existente = FotoRostro.objects.filter(
+                    usuario=usuario, angulo=angulo
+                ).first()
+                if existente and existente.archivo != rel_path:
+                    eliminar_archivo_rostro(existente.archivo)
+
+                foto, _ = FotoRostro.objects.update_or_create(
+                    usuario=usuario,
+                    angulo=angulo,
+                    defaults={"archivo": rel_path},
+                )
+                from django.conf import settings
+
+                url = request.build_absolute_uri(
+                    f"{settings.MEDIA_URL}{rel_path}"
+                )
+                guardadas.append(
+                    FotoRostroType(
+                        angulo=foto.angulo, url=url, actualizado_en=foto.actualizado_en
+                    )
+                )
+
+            frente_url = next((f.url for f in guardadas if f.angulo == "frente"), None)
+            update_fields: list[str] = []
+            if frente_url:
+                usuario.foto_url = frente_url
+                update_fields.append("foto_url")
+            if descriptor_promedio is not None:
+                err_desc = validar_descriptor(descriptor_promedio)
+                if err_desc:
+                    return RegistroRostroResponseType(
+                        ok=False, message=err_desc, fotos=[]
+                    )
+                usuario.rostro_descriptor = [float(x) for x in descriptor_promedio]
+                update_fields.append("rostro_descriptor")
+            if update_fields:
+                usuario.save(update_fields=update_fields)
+
+            return RegistroRostroResponseType(
+                ok=True,
+                message="Registro de rostro guardado correctamente.",
+                fotos=guardadas,
+            )
+        except Exception as e:
+            return RegistroRostroResponseType(
+                ok=False, message=f"Error: {str(e)}", fotos=[]
+            )
+
+    @strawberry.mutation
+    def actualizar_foto_perfil(
+        self,
+        info,
+        imagen_base64: str,
+    ) -> FotoPerfilResponseType:
+        """Sube o reemplaza la foto de perfil del usuario autenticado."""
+        try:
+            usuario = get_usuario_from_info(info)
+            if not (imagen_base64 or "").strip():
+                return FotoPerfilResponseType(
+                    ok=False, message="Debe enviar una imagen."
+                )
+
+            try:
+                rel_path = guardar_foto_perfil(usuario.id_usuario, imagen_base64)
+            except ValueError as exc:
+                return FotoPerfilResponseType(ok=False, message=str(exc))
+
+            anterior = usuario.foto_url
+            if anterior and anterior != rel_path and not anterior.startswith("http"):
+                eliminar_archivo_rostro(anterior)
+
+            usuario.foto_url = rel_path
+            usuario.save(update_fields=["foto_url", "actualizado_en"])
+
+            from django.conf import settings
+
+            request = info.context["request"]
+            foto_abs = request.build_absolute_uri(f"{settings.MEDIA_URL}{rel_path}")
+
+            return FotoPerfilResponseType(
+                ok=True,
+                message="Foto de perfil actualizada.",
+                foto_url=foto_abs,
+            )
+        except Exception as e:
+            return FotoPerfilResponseType(ok=False, message=f"Error: {str(e)}")
+
+    @strawberry.mutation
+    def solicitar_recuperacion_password(
+        self,
+        ci: str,
+        email: str,
+        tipo_usuario: str,
+    ) -> PasswordResetResponseType:
+        """Envía email con enlace de recuperación (respuesta genérica por seguridad)."""
+        try:
+            usuario = buscar_usuario_recuperacion(ci, email, tipo_usuario)
+            if usuario is None:
+                return PasswordResetResponseType(ok=True, message=MENSAJE_SOLICITUD_GENERICO)
+
+            if solicitudes_recientes(usuario) >= MAX_SOLICITUDES_POR_HORA:
+                return PasswordResetResponseType(ok=True, message=MENSAJE_SOLICITUD_GENERICO)
+
+            token_plano, _ = crear_solicitud_reset(usuario)
+            from django.conf import settings
+
+            enlace = (
+                f"{settings.FRONTEND_URL.rstrip('/')}/recuperar-password"
+                f"?token={token_plano}"
+            )
+            nombre = f"{usuario.nombres} {usuario.apellidos}".strip()
+            enviado = enviar_email_recuperacion_password(
+                email_destino=usuario.email,
+                nombre_usuario=nombre,
+                enlace_recuperacion=enlace,
+                minutos_validez=RESET_TOKEN_MINUTES,
+            )
+            if not enviado:
+                print(
+                    f"[RESET PASSWORD] Falló envío a {usuario.email} "
+                    f"(usuario id={usuario.id_usuario})"
+                )
+
+            return PasswordResetResponseType(ok=True, message=MENSAJE_SOLICITUD_GENERICO)
+        except Exception as e:
+            return PasswordResetResponseType(
+                ok=False,
+                message=f"Error al procesar la solicitud: {str(e)}",
+            )
+
+    @strawberry.mutation
+    def restablecer_password(
+        self,
+        token: str,
+        password_nuevo: str,
+    ) -> PasswordResetResponseType:
+        """Define nueva contraseña con token del email (público, sin JWT)."""
+        try:
+            usuario, err = validar_token_recuperacion(token)
+            if err or usuario is None:
+                return PasswordResetResponseType(ok=False, message=err or "Token inválido.")
+
+            ok_pass, msg_pass = validar_politica_password(password_nuevo)
+            if not ok_pass:
+                return PasswordResetResponseType(ok=False, message=msg_pass)
+
+            if verify_password(password_nuevo, usuario.password_hash):
+                return PasswordResetResponseType(
+                    ok=False,
+                    message="La nueva contraseña debe ser diferente a la anterior.",
+                )
+
+            usuario.password_hash = hash_password(password_nuevo)
+            usuario.intentos_fallidos_login = 0
+            usuario.bloqueado_hasta = None
+            usuario.save(
+                update_fields=[
+                    "password_hash",
+                    "intentos_fallidos_login",
+                    "bloqueado_hasta",
+                ]
+            )
+            marcar_token_usado(token)
+
+            return PasswordResetResponseType(
+                ok=True,
+                message="Contraseña actualizada. Ya puedes iniciar sesión.",
+            )
+        except Exception as e:
+            return PasswordResetResponseType(
+                ok=False,
+                message=f"Error: {str(e)}",
+            )
+
+    @strawberry.mutation
+    def desbloquear_cuenta(self, info, id_usuario: int) -> ResponseType:
+        """Desbloquea intentos fallidos de login (solo admin)."""
+        try:
+            admin = get_usuario_from_info(info)
+            if admin.rol.nombre != "admin":
+                return ResponseType(success=False, message="No tienes permiso para esta acción.")
+            try:
+                usuario = Usuario.objects.get(id_usuario=id_usuario)
+            except Usuario.DoesNotExist:
+                return ResponseType(success=False, message="Usuario no encontrado.")
+            limpiar_bloqueo_login(usuario)
+            return ResponseType(
+                success=True,
+                message=f"Cuenta de {usuario.apellidos} {usuario.nombres} desbloqueada.",
+            )
         except Exception as e:
             return ResponseType(success=False, message=f"Error: {str(e)}")
 

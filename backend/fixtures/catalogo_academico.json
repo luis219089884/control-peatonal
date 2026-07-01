@@ -1,0 +1,1569 @@
+[
+{
+  "model": "usuarios.sede",
+  "pk": 1,
+  "fields": {
+    "nombre": "UAGRM Santa Cruz - Campus Central",
+    "ciudad": "Santa Cruz de la Sierra",
+    "departamento": "Santa Cruz",
+    "direccion": "Av. del Ejército s/n",
+    "telefono": "03-3362323",
+    "es_integral": false,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.sede",
+  "pk": 2,
+  "fields": {
+    "nombre": "UAGRM Montero",
+    "ciudad": "Montero",
+    "departamento": "Santa Cruz",
+    "direccion": "Calle 6 de Agosto s/n",
+    "telefono": null,
+    "es_integral": false,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.sede",
+  "pk": 3,
+  "fields": {
+    "nombre": "UAGRM Vallegrande",
+    "ciudad": "Vallegrande",
+    "departamento": "Santa Cruz",
+    "direccion": null,
+    "telefono": null,
+    "es_integral": true,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.sede",
+  "pk": 4,
+  "fields": {
+    "nombre": "UAGRM Camiri",
+    "ciudad": "Camiri",
+    "departamento": "Santa Cruz",
+    "direccion": null,
+    "telefono": null,
+    "es_integral": true,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.sede",
+  "pk": 5,
+  "fields": {
+    "nombre": "UAGRM Charagua",
+    "ciudad": "Charagua",
+    "departamento": "Santa Cruz",
+    "direccion": null,
+    "telefono": null,
+    "es_integral": true,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.sede",
+  "pk": 6,
+  "fields": {
+    "nombre": "UAGRM Riberalta",
+    "ciudad": "Riberalta",
+    "departamento": "Beni",
+    "direccion": null,
+    "telefono": null,
+    "es_integral": true,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.sede",
+  "pk": 7,
+  "fields": {
+    "nombre": "UAGRM Yapacaní",
+    "ciudad": "Yapacaní",
+    "departamento": "Santa Cruz",
+    "direccion": null,
+    "telefono": null,
+    "es_integral": true,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.158Z"
+  }
+},
+{
+  "model": "usuarios.sede",
+  "pk": 8,
+  "fields": {
+    "nombre": "UAGRM San Ignacio de Velasco",
+    "ciudad": "San Ignacio de Velasco",
+    "departamento": "Santa Cruz",
+    "direccion": null,
+    "telefono": null,
+    "es_integral": true,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.174Z"
+  }
+},
+{
+  "model": "usuarios.sede",
+  "pk": 9,
+  "fields": {
+    "nombre": "UAGRM San Julián",
+    "ciudad": "San Julián",
+    "departamento": "Santa Cruz",
+    "direccion": null,
+    "telefono": null,
+    "es_integral": true,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.179Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 1,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Ingeniería en Ciencias de la Computación y Telecomunicaciones (FICCT)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 2,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Ciencias Económicas, Administrativas y Financieras (FCEAF)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 3,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Ciencias Exactas y Tecnología (FCET)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 4,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Ciencias Jurídicas, Políticas, Sociales y Relaciones Internacionales",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 5,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Humanidades",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 6,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Medicina, Enfermería, Nutrición y Tecnología Médica",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 7,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Odontología",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 8,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Ciencias Agrícolas",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 9,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Ciencias Veterinarias",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 10,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Arquitectura y Urbanismo",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 11,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Ciencias de la Salud",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 12,
+  "fields": {
+    "sede": 2,
+    "nombre": "Facultad Integral del Norte (Montero)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 13,
+  "fields": {
+    "sede": 3,
+    "nombre": "Facultad Integral de los Valles Cruceños (FIVC)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 14,
+  "fields": {
+    "sede": 4,
+    "nombre": "Facultad Integral del Chaco (FICH)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 15,
+  "fields": {
+    "sede": 5,
+    "nombre": "Facultad Integral Charagua",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 16,
+  "fields": {
+    "sede": 6,
+    "nombre": "Facultad Integral Riberalta",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 17,
+  "fields": {
+    "sede": 2,
+    "nombre": "facultad de odontologia",
+    "descripcion": "aibdiabceibcw",
+    "activo": true,
+    "creado_en": "2026-06-01T21:09:49.758Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 18,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Ciencias Farmacéuticas y Bioquímicas",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2026-06-01T21:40:45.000Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 19,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad Politécnica (FP)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2026-06-01T21:40:45.055Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 20,
+  "fields": {
+    "sede": 1,
+    "nombre": "Facultad de Contaduría Pública",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2026-06-01T21:40:45.077Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 21,
+  "fields": {
+    "sede": 7,
+    "nombre": "Facultad Integral de Ichilo (FINI)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.188Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 22,
+  "fields": {
+    "sede": 8,
+    "nombre": "Facultad Integral Chiquitana (FAICHI)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.194Z"
+  }
+},
+{
+  "model": "usuarios.facultad",
+  "pk": 23,
+  "fields": {
+    "sede": 9,
+    "nombre": "Facultad Integral del Noreste (FINE)",
+    "descripcion": null,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.199Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 1,
+  "fields": {
+    "facultad": 1,
+    "nombre": "Ingeniería de Sistemas",
+    "codigo": "FICCT-SIS",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 2,
+  "fields": {
+    "facultad": 1,
+    "nombre": "Ingeniería en Telecomunicaciones",
+    "codigo": "FICCT-TEL",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 3,
+  "fields": {
+    "facultad": 1,
+    "nombre": "Ingeniería Electrónica",
+    "codigo": "FICCT-ELE",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2024-01-01T00:00:00Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 8,
+  "fields": {
+    "facultad": 1,
+    "nombre": "Ingeniería Informática",
+    "codigo": "FICCT-INF",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:40:45.104Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 10,
+  "fields": {
+    "facultad": 1,
+    "nombre": "Ingeniería en Redes y Telecomunicaciones",
+    "codigo": "FICCT-RTC",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.434Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 11,
+  "fields": {
+    "facultad": 2,
+    "nombre": "Administración de Empresas",
+    "codigo": "ECON-ADM",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.444Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 12,
+  "fields": {
+    "facultad": 2,
+    "nombre": "Economía",
+    "codigo": "ECON-ECO",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.445Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 13,
+  "fields": {
+    "facultad": 2,
+    "nombre": "Comercio Internacional",
+    "codigo": "ECON-COM",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.456Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 14,
+  "fields": {
+    "facultad": 2,
+    "nombre": "Ingeniería Comercial",
+    "codigo": "ECON-ING",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.461Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 15,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería Civil",
+    "codigo": "FCET-CIV",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.468Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 16,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería Industrial",
+    "codigo": "FCET-IND",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.471Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 17,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería Electromecánica",
+    "codigo": "FCET-ELM",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.476Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 18,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería en Alimentos",
+    "codigo": "FCET-ALI",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.476Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 19,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería Ambiental",
+    "codigo": "FCET-AMB",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.484Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 20,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería Química",
+    "codigo": "FCET-QUI",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.488Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 21,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería Petrolera",
+    "codigo": "FCET-PET",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.494Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 22,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería Eléctrica",
+    "codigo": "FCET-ELC",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.500Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 23,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería Electrónica",
+    "codigo": "FCET-ELR",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.514Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 24,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería en Control de Procesos",
+    "codigo": "FCET-CTP",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.519Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 25,
+  "fields": {
+    "facultad": 3,
+    "nombre": "Ingeniería en Sistemas",
+    "codigo": "FCET-SIS",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.519Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 26,
+  "fields": {
+    "facultad": 4,
+    "nombre": "Derecho",
+    "codigo": "JUR-DER",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.526Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 27,
+  "fields": {
+    "facultad": 4,
+    "nombre": "Trabajo Social",
+    "codigo": "JUR-TRS",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.528Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 28,
+  "fields": {
+    "facultad": 4,
+    "nombre": "Ciencia Política y Administración Pública",
+    "codigo": "JUR-POL",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.533Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 29,
+  "fields": {
+    "facultad": 4,
+    "nombre": "Relaciones Internacionales",
+    "codigo": "JUR-RRI",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.537Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 30,
+  "fields": {
+    "facultad": 11,
+    "nombre": "Medicina",
+    "codigo": "SAL-MED",
+    "duracion_anios": 7,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.539Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 31,
+  "fields": {
+    "facultad": 11,
+    "nombre": "Enfermería",
+    "codigo": "SAL-ENF",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.544Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 32,
+  "fields": {
+    "facultad": 11,
+    "nombre": "Odontología",
+    "codigo": "SAL-ODO",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.546Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 33,
+  "fields": {
+    "facultad": 11,
+    "nombre": "Psicología",
+    "codigo": "SAL-PSI",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.556Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 34,
+  "fields": {
+    "facultad": 18,
+    "nombre": "Farmacia",
+    "codigo": "FAR-FAR",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.561Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 35,
+  "fields": {
+    "facultad": 18,
+    "nombre": "Bioquímica",
+    "codigo": "FAR-BIO",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.567Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 36,
+  "fields": {
+    "facultad": 5,
+    "nombre": "Ciencias de la Comunicación",
+    "codigo": "HUM-COM",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.576Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 37,
+  "fields": {
+    "facultad": 5,
+    "nombre": "Ciencias de la Educación",
+    "codigo": "HUM-EDU",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.578Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 38,
+  "fields": {
+    "facultad": 5,
+    "nombre": "Sociología",
+    "codigo": "HUM-SOC",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.584Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 39,
+  "fields": {
+    "facultad": 5,
+    "nombre": "Gestión del Turismo",
+    "codigo": "HUM-TUR",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.590Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 40,
+  "fields": {
+    "facultad": 5,
+    "nombre": "Actividad Física",
+    "codigo": "HUM-AFD",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.595Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 41,
+  "fields": {
+    "facultad": 5,
+    "nombre": "Arte",
+    "codigo": "HUM-ART",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.601Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 42,
+  "fields": {
+    "facultad": 10,
+    "nombre": "Arquitectura",
+    "codigo": "HAB-ARQ",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.604Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 43,
+  "fields": {
+    "facultad": 10,
+    "nombre": "Diseño Integral",
+    "codigo": "HAB-DIS",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.610Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 44,
+  "fields": {
+    "facultad": 10,
+    "nombre": "Planificación Territorial",
+    "codigo": "HAB-PLT",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.616Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 45,
+  "fields": {
+    "facultad": 8,
+    "nombre": "Ingeniería Agronómica",
+    "codigo": "AGR-AGR",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.626Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 46,
+  "fields": {
+    "facultad": 8,
+    "nombre": "Ingeniería Forestal",
+    "codigo": "AGR-FOR",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.626Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 47,
+  "fields": {
+    "facultad": 8,
+    "nombre": "Ciencias Ambientales",
+    "codigo": "AGR-AMB",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.636Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 48,
+  "fields": {
+    "facultad": 8,
+    "nombre": "Biología",
+    "codigo": "AGR-BIO",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.643Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 49,
+  "fields": {
+    "facultad": 9,
+    "nombre": "Medicina Veterinaria y Zootecnia",
+    "codigo": "VET-MVZ",
+    "duracion_anios": 6,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.649Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 50,
+  "fields": {
+    "facultad": 19,
+    "nombre": "Ingeniería en Agrimensura",
+    "codigo": "FP-AGR",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.656Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 51,
+  "fields": {
+    "facultad": 19,
+    "nombre": "Construcciones Civiles",
+    "codigo": "FP-CON",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.658Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 52,
+  "fields": {
+    "facultad": 19,
+    "nombre": "Electricidad Industrial",
+    "codigo": "FP-ELI",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.666Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 53,
+  "fields": {
+    "facultad": 19,
+    "nombre": "Electrónica",
+    "codigo": "FP-ELE",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.668Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 54,
+  "fields": {
+    "facultad": 19,
+    "nombre": "Ingeniería en Materiales",
+    "codigo": "FP-MAT",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.674Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 55,
+  "fields": {
+    "facultad": 19,
+    "nombre": "Ingeniería en Metalurgia",
+    "codigo": "FP-MET",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.678Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 56,
+  "fields": {
+    "facultad": 19,
+    "nombre": "Licenciatura en Ofimática",
+    "codigo": "FP-OFI",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.684Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 57,
+  "fields": {
+    "facultad": 19,
+    "nombre": "Mecánica General",
+    "codigo": "FP-MEC",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.688Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 58,
+  "fields": {
+    "facultad": 20,
+    "nombre": "Contaduría Pública",
+    "codigo": "CONT-CP",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.695Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 59,
+  "fields": {
+    "facultad": 20,
+    "nombre": "Información y Control de Gestión",
+    "codigo": "CONT-ICG",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:41:30.704Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 60,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Medicina",
+    "codigo": "FINOR-MED",
+    "duracion_anios": 7,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.204Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 61,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Enfermería",
+    "codigo": "FINOR-ENF",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.220Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 62,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Derecho",
+    "codigo": "FINOR-DER",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.231Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 63,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Ingeniería en Sistemas",
+    "codigo": "FINOR-SIS",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.238Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 64,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Ingeniería Industrial",
+    "codigo": "FINOR-IND",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.249Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 65,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Ingeniería Petrolera",
+    "codigo": "FINOR-PET",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.259Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 66,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Ingeniería Comercial",
+    "codigo": "FINOR-COM",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.267Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 67,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Ingeniería Agrícola",
+    "codigo": "FINOR-AGR",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.270Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 68,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Medicina Veterinaria y Zootecnia",
+    "codigo": "FINOR-VET",
+    "duracion_anios": 6,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.276Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 69,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Contaduría Pública",
+    "codigo": "FINOR-CON",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.283Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 70,
+  "fields": {
+    "facultad": 12,
+    "nombre": "Ciencias de la Educación",
+    "codigo": "FINOR-EDU",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.285Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 71,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Ingeniería del Petróleo, Gas y Energías Renovables",
+    "codigo": "FICH-PGE",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.297Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 72,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Ingeniería Industrial",
+    "codigo": "FICH-IND",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.307Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 73,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Ingeniería en Sistemas",
+    "codigo": "FICH-SIS",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.318Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 74,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Ingeniería Informática",
+    "codigo": "FICH-INF",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.330Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 75,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Ingeniería Agropecuaria",
+    "codigo": "FICH-AGP",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.339Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 76,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Ingeniería Socio Ambiental",
+    "codigo": "FICH-AMB",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.346Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 77,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Derecho",
+    "codigo": "FICH-DER",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.350Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 78,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Enfermería",
+    "codigo": "FICH-ENF",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.356Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 79,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Odontología",
+    "codigo": "FICH-ODO",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.361Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 80,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Medicina",
+    "codigo": "FICH-MED",
+    "duracion_anios": 7,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.369Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 81,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Administración de Empresas",
+    "codigo": "FICH-ADM",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.375Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 82,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Contaduría Pública",
+    "codigo": "FICH-CON",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.386Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 83,
+  "fields": {
+    "facultad": 14,
+    "nombre": "Ciencias de la Educación",
+    "codigo": "FICH-EDU",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.392Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 84,
+  "fields": {
+    "facultad": 21,
+    "nombre": "Ingeniería Agropecuaria",
+    "codigo": "FINI-AGP",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.403Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 85,
+  "fields": {
+    "facultad": 21,
+    "nombre": "Ingeniería Comercial",
+    "codigo": "FINI-COM",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.413Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 86,
+  "fields": {
+    "facultad": 21,
+    "nombre": "Administración de Empresas",
+    "codigo": "FINI-ADM",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.421Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 87,
+  "fields": {
+    "facultad": 21,
+    "nombre": "Contaduría Pública",
+    "codigo": "FINI-CON",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.426Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 88,
+  "fields": {
+    "facultad": 21,
+    "nombre": "Derecho",
+    "codigo": "FINI-DER",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.435Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 89,
+  "fields": {
+    "facultad": 21,
+    "nombre": "Enfermería",
+    "codigo": "FINI-ENF",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.443Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 90,
+  "fields": {
+    "facultad": 21,
+    "nombre": "Ciencias de la Educación",
+    "codigo": "FINI-EDU",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.454Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 91,
+  "fields": {
+    "facultad": 22,
+    "nombre": "Ingeniería Agropecuaria",
+    "codigo": "FAICHI-AGP",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.467Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 92,
+  "fields": {
+    "facultad": 22,
+    "nombre": "Medicina Veterinaria y Zootecnia",
+    "codigo": "FAICHI-VET",
+    "duracion_anios": 6,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.476Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 93,
+  "fields": {
+    "facultad": 22,
+    "nombre": "Contaduría Pública",
+    "codigo": "FAICHI-CON",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.484Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 94,
+  "fields": {
+    "facultad": 22,
+    "nombre": "Derecho",
+    "codigo": "FAICHI-DER",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.489Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 95,
+  "fields": {
+    "facultad": 23,
+    "nombre": "Ingeniería Agropecuaria",
+    "codigo": "FINE-AGP",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.499Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 96,
+  "fields": {
+    "facultad": 23,
+    "nombre": "Ingeniería Agroindustrial",
+    "codigo": "FINE-AIN",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.505Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 97,
+  "fields": {
+    "facultad": 23,
+    "nombre": "Derecho",
+    "codigo": "FINE-DER",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.509Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 98,
+  "fields": {
+    "facultad": 23,
+    "nombre": "Enfermería",
+    "codigo": "FINE-ENF",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.509Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 99,
+  "fields": {
+    "facultad": 23,
+    "nombre": "Contaduría Pública",
+    "codigo": "FINE-CON",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.509Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 100,
+  "fields": {
+    "facultad": 23,
+    "nombre": "Ciencias de la Educación",
+    "codigo": "FINE-EDU",
+    "duracion_anios": 4,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.529Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 101,
+  "fields": {
+    "facultad": 13,
+    "nombre": "Ingeniería Agropecuaria",
+    "codigo": "FIVC-AGP",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.540Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 102,
+  "fields": {
+    "facultad": 13,
+    "nombre": "Ingeniería en Sistemas",
+    "codigo": "FIVC-SIS",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.550Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 103,
+  "fields": {
+    "facultad": 13,
+    "nombre": "Contaduría Pública",
+    "codigo": "FIVC-CON",
+    "duracion_anios": 5,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.554Z"
+  }
+},
+{
+  "model": "usuarios.carrera",
+  "pk": 104,
+  "fields": {
+    "facultad": 13,
+    "nombre": "Técnico Superior en Industrialización de Alimentos",
+    "codigo": "FIVC-TSA",
+    "duracion_anios": 3,
+    "activo": true,
+    "creado_en": "2026-06-01T21:52:27.567Z"
+  }
+}
+]

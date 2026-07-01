@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useCallback } from 'react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useMutation } from '@apollo/client'
 import {
   LOGIN_MUTATION,
@@ -8,6 +8,10 @@ import {
 import { useAuth } from '../context/AuthContext'
 import type { AuthUser } from '../context/AuthContext'
 import LoginBackground from '../components/LoginBackground'
+import LoginSecurityAlert, {
+  LOGIN_SECURITY_EMPTY,
+  type LoginSecurityState,
+} from '../components/LoginSecurityAlert'
 
 type TipoUsuario = Exclude<AuthUser['tipo_usuario'], 'guardia'> | 'administrativo'
 
@@ -139,6 +143,8 @@ function TarjetaPerfil({
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const mensajeRecuperacion = (location.state as { mensajeRecuperacion?: string } | null)?.mensajeRecuperacion
   const { login, user } = useAuth()
 
   const [pantalla, setPantalla] = useState<Pantalla>('seleccion')
@@ -149,6 +155,8 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [mostrarPass, setMostrarPass] = useState(false)
   const [error, setError] = useState('')
+  const [seguridad, setSeguridad] = useState<LoginSecurityState>(LOGIN_SECURITY_EMPTY)
+  const [segundosBloqueoUi, setSegundosBloqueoUi] = useState(0)
   const [codigo, setCodigo] = useState('')
   const [partialToken, setPartialToken] = useState('')
   const [nombreUsuario, setNombreUsuario] = useState('')
@@ -173,6 +181,8 @@ export default function Login() {
   const elegirRol = (tipo: TipoUsuario) => {
     setRolSeleccionado(tipo)
     setError('')
+    setSeguridad(LOGIN_SECURITY_EMPTY)
+    setSegundosBloqueoUi(0)
     setCi('')
     setPassword('')
     setPantalla('login')
@@ -183,12 +193,44 @@ export default function Login() {
     setRolSeleccionado(null)
     setHoverRol(null)
     setError('')
+    setSeguridad(LOGIN_SECURITY_EMPTY)
+    setSegundosBloqueoUi(0)
     setCodigo('')
+  }
+
+  const handleBloqueoTerminado = useCallback(() => {
+    setSegundosBloqueoUi(0)
+    setSeguridad(prev => ({
+      ...prev,
+      cuentaBloqueada: false,
+      segundosBloqueo: null,
+      intentosRestantes: prev.maxIntentos,
+      message: '',
+    }))
+  }, [])
+
+  const loginBloqueado = seguridad.cuentaBloqueada && segundosBloqueoUi > 0
+
+  const aplicarEstadoSeguridad = (res: {
+    message?: string
+    cuentaBloqueada?: boolean
+    segundosBloqueo?: number | null
+    intentosRestantes?: number | null
+    maxIntentos?: number
+  }) => {
+    setSeguridad({
+      cuentaBloqueada: !!res.cuentaBloqueada,
+      segundosBloqueo: res.segundosBloqueo ?? null,
+      intentosRestantes: res.intentosRestantes ?? null,
+      maxIntentos: res.maxIntentos ?? 5,
+      message: res.message || '',
+    })
+    setSegundosBloqueoUi(res.segundosBloqueo ?? 0)
   }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!rolSeleccionado) return
+    if (!rolSeleccionado || loginBloqueado) return
     setError('')
     try {
       const { data } = await doLogin({
@@ -196,9 +238,13 @@ export default function Login() {
       })
       const res = data?.login
       if (!res?.token && !res?.needs2fa) {
-        setError(res?.message || 'Error al iniciar sesión.')
+        aplicarEstadoSeguridad(res ?? {})
+        if (!res?.cuentaBloqueada && res?.intentosRestantes == null) {
+          setError(res?.message || 'Error al iniciar sesión.')
+        }
         return
       }
+      setSeguridad(LOGIN_SECURITY_EMPTY)
       if (res.needs2fa) {
         setPartialToken(res.partialToken)
         setNombreUsuario(`${res.nombres} ${res.apellidos}`)
@@ -257,6 +303,11 @@ export default function Login() {
       {/* ── Selección de perfil (estilo perfil.uagrm.edu.bo) ── */}
       {pantalla === 'seleccion' && (
         <main className="w-full max-w-4xl fade-in text-center">
+          {mensajeRecuperacion && (
+            <div className="mb-6 mx-auto max-w-md text-sm text-green-100 bg-green-950/40 border border-green-400/40 rounded-lg px-4 py-3">
+              {mensajeRecuperacion}
+            </div>
+          )}
           <h1 className="font-serif text-3xl md:text-4xl font-bold text-[#8B1A1A] mb-3 tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]">
             Bienvenido al Perfil
           </h1>
@@ -281,13 +332,12 @@ export default function Login() {
           </div>
 
           <p className="text-sm">
-            <button
-              type="button"
+            <Link
+              to="/olvide-password"
               className="text-[#d8d2d5] hover:text-white hover:underline font-medium transition-colors"
-              onClick={() => {}}
             >
               ¿Olvidaste tu contraseña?
-            </button>
+            </Link>
           </p>
         </main>
       )}
@@ -336,19 +386,29 @@ export default function Login() {
                   </button>
                 </div>
 
-                {error && (
+                {error && !seguridad.message && (
                   <div className={`text-red-100 text-sm font-medium rounded px-3 py-2 border border-red-400/50 bg-red-950/25 ${LOGIN_TEXT_SHADOW}`}>
                     ⚠️ {error}
                   </div>
                 )}
 
+                <LoginSecurityAlert
+                  {...seguridad}
+                  onBloqueoTerminado={handleBloqueoTerminado}
+                  onSegundosTick={setSegundosBloqueoUi}
+                />
+
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || loginBloqueado}
                   className={`w-full bg-[#8B1A1A]/75 hover:bg-[#8B1A1A]/90 text-white font-semibold py-3 rounded
                     border border-white/25 transition-all duration-200 disabled:opacity-50 text-sm tracking-wide ${LOGIN_TEXT_SHADOW}`}
                 >
-                  {loading ? 'Verificando...' : 'Iniciar Sesión'}
+                  {loginBloqueado
+                    ? `Bloqueado (${segundosBloqueoUi}s)`
+                    : loading
+                      ? 'Verificando...'
+                      : 'Iniciar Sesión'}
                 </button>
               </form>
 
@@ -361,9 +421,12 @@ export default function Login() {
           </div>
 
           <p className="text-center mt-4">
-            <button type="button" className={LINK_CLASS}>
+            <Link
+              to={rolSeleccionado ? `/olvide-password?tipo=${rolSeleccionado}` : '/olvide-password'}
+              className={LINK_CLASS}
+            >
               ¿Olvidaste tu contraseña?
-            </button>
+            </Link>
           </p>
         </div>
       )}

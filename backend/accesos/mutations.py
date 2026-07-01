@@ -1,6 +1,6 @@
 import hashlib
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from typing import List, Optional
 from uuid import uuid4
 
 import strawberry
@@ -15,12 +15,19 @@ from accesos.models import (
 from accesos.types import (
     AccesoLogisticoResponseType,
     AccesoManualResponseType,
+    BuscarRostroResponseType,
+    CandidatoRostroType,
     InvitadoRegistradoType,
     QRGeneradoType,
     ValidarQRResponseType,
 )
 from accesos.operador_utils import resolver_operador_acceso
-from usuarios.models import Administrativo, Docente, Estudiante, PersonalExterno
+from usuarios.models import Administrativo, Docente, Estudiante, PersonalExterno, Usuario
+from usuarios.face_matching import (
+    buscar_candidatos_rostro,
+    confianza_desde_distancia,
+    validar_descriptor,
+)
 from usuarios.types import ResponseType
 from usuarios.utils import get_usuario_from_info
 
@@ -529,6 +536,174 @@ class AccesoMutation:
                 nombre=None, ci=None, tipo_persona=None,
                 tipo_movimiento=None, sede=None, facultad=None,
             )
+
+    @strawberry.mutation
+    def buscar_candidatos_rostro(
+        self,
+        info,
+        descriptor: List[float],
+        id_ingreso: int,
+    ) -> BuscarRostroResponseType:
+        """Fase 2: sugiere candidatos por similitud facial (modo asistido)."""
+        try:
+            operador_usuario = get_usuario_from_info(info)
+            operador, err = resolver_operador_acceso(operador_usuario, id_ingreso)
+            if err:
+                return BuscarRostroResponseType(ok=False, message=err, candidatos=[])
+
+            err_desc = validar_descriptor(descriptor)
+            if err_desc:
+                return BuscarRostroResponseType(ok=False, message=err_desc, candidatos=[])
+
+            from accesos.utils import obtener_sede_de_ingreso, usuario_puede_acceder_sede
+
+            sede_obj = obtener_sede_de_ingreso(operador.ingreso)
+            if not sede_obj:
+                return BuscarRostroResponseType(
+                    ok=False,
+                    message="Este portón no tiene sede asignada.",
+                    candidatos=[],
+                )
+
+            usuarios = Usuario.objects.filter(
+                activo=True,
+                rostro_descriptor__isnull=False,
+            ).exclude(tipo_usuario="guardia").exclude(rol__nombre="guardia")
+
+            elegibles = [
+                u for u in usuarios
+                if usuario_puede_acceder_sede(u, sede_obj.id_sede)
+            ]
+            matches = buscar_candidatos_rostro(descriptor, elegibles)
+            request = info.context["request"]
+
+            candidatos: list[CandidatoRostroType] = []
+            for usuario, dist in matches:
+                foto = usuario.foto_url
+                if foto and not foto.startswith("http"):
+                    from django.conf import settings
+                    foto = request.build_absolute_uri(
+                        foto if foto.startswith("/") else f"{settings.MEDIA_URL}{foto}"
+                    )
+                candidatos.append(
+                    CandidatoRostroType(
+                        id_usuario=usuario.id_usuario,
+                        nombres=usuario.nombres,
+                        apellidos=usuario.apellidos,
+                        ci=usuario.ci,
+                        tipo_usuario=usuario.tipo_usuario,
+                        foto_url=foto,
+                        confianza=confianza_desde_distancia(dist),
+                        distancia=round(dist, 4),
+                    )
+                )
+
+            if not candidatos:
+                return BuscarRostroResponseType(
+                    ok=True,
+                    message="No se encontraron coincidencias. Verifique el registro facial o use CI manual.",
+                    candidatos=[],
+                )
+
+            return BuscarRostroResponseType(
+                ok=True,
+                message=f"Se encontraron {len(candidatos)} candidato(s). Confirme la identidad.",
+                candidatos=candidatos,
+            )
+        except Exception as e:
+            return BuscarRostroResponseType(
+                ok=False, message=f"Error interno: {str(e)}", candidatos=[]
+            )
+
+    @strawberry.mutation
+    def confirmar_acceso_rostro(
+        self,
+        info,
+        id_usuario: int,
+        id_ingreso: int,
+    ) -> AccesoManualResponseType:
+        """Registra acceso tras confirmación del guardia (metodo=rostro)."""
+        def _rechazar(msg: str) -> AccesoManualResponseType:
+            return AccesoManualResponseType(
+                resultado="RECHAZADO", mensaje=msg,
+                nombre=None, ci=None, tipo_persona=None,
+                tipo_movimiento=None, sede=None, facultad=None,
+            )
+
+        try:
+            operador_usuario = get_usuario_from_info(info)
+            operador, err = resolver_operador_acceso(operador_usuario, id_ingreso)
+            if err:
+                return _rechazar(err)
+
+            ingreso = operador.ingreso
+            from accesos.utils import (
+                esta_adentro_sede,
+                mensaje_rechazo_sede_usuario,
+                obtener_sede_de_ingreso,
+                usuario_puede_acceder_sede,
+            )
+
+            sede_obj = obtener_sede_de_ingreso(ingreso)
+            if not sede_obj:
+                return _rechazar("Este portón no tiene sede asignada.")
+
+            try:
+                u = Usuario.objects.get(id_usuario=id_usuario)
+            except Usuario.DoesNotExist:
+                return _rechazar("Usuario no encontrado.")
+
+            if not u.activo:
+                return _rechazar("El usuario está desactivado.")
+            if u.rol.nombre == "guardia" or u.tipo_usuario == "guardia":
+                return _rechazar("Acción no permitida.")
+            if not u.rostro_descriptor:
+                return _rechazar("El usuario no tiene registro facial.")
+
+            if not usuario_puede_acceder_sede(u, sede_obj.id_sede):
+                return _rechazar(mensaje_rechazo_sede_usuario(u))
+
+            ya_adentro = esta_adentro_sede(u.id_usuario, sede_obj.id_sede)
+            tipo_movimiento = "salida" if ya_adentro else "entrada"
+
+            nombre = _nombre_completo(u)
+            sede_nombre, facultad_nombre, carrera_nombre = _datos_persona(u)
+
+            RegistroIngreso.objects.create(
+                token=None,
+                ingreso=ingreso,
+                guardia=operador.guardia,
+                registrado_por=operador.usuario,
+                sede_acceso=sede_obj,
+                usuario=u,
+                invitado=None,
+                tipo_persona=u.tipo_usuario,
+                tipo_movimiento=tipo_movimiento,
+                metodo="rostro",
+                nombre_completo=nombre,
+                sede_pertenece=sede_nombre,
+                facultad_pertenece=facultad_nombre,
+                carrera_pertenece=carrera_nombre,
+                acceso_permitido=True,
+            )
+
+            mensaje = (
+                f"Bienvenido/a, {nombre}"
+                if tipo_movimiento == "entrada"
+                else f"Hasta luego, {nombre}"
+            )
+            return AccesoManualResponseType(
+                resultado="PERMITIDO",
+                mensaje=mensaje,
+                nombre=nombre,
+                ci=u.ci,
+                tipo_persona=u.tipo_usuario,
+                tipo_movimiento=tipo_movimiento,
+                sede=sede_nombre,
+                facultad=facultad_nombre,
+            )
+        except Exception as e:
+            return _rechazar(f"Error interno: {str(e)}")
 
     @strawberry.mutation
     def registrar_acceso_logistico(

@@ -3,6 +3,8 @@ import { Html5Qrcode } from 'html5-qrcode'
 
 interface QrScannerProps {
   active: boolean
+  /** Pausa lectura sin desmontar (p. ej. mientras valida en servidor). */
+  paused?: boolean
   onScan: (token: string) => void
 }
 
@@ -13,12 +15,28 @@ function pickCamera(cameras: { id: string; label: string }[]) {
   return back?.id ?? cameras[cameras.length - 1].id
 }
 
-export default function QrScanner({ active, onScan }: QrScannerProps) {
+async function stopScannerSafely(scanner: Html5Qrcode) {
+  try {
+    if (scanner.isScanning) {
+      await scanner.stop()
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    scanner.clear()
+  } catch {
+    /* ignore */
+  }
+}
+
+export default function QrScanner({ active, paused = false, onScan }: QrScannerProps) {
   const elementId = useId().replace(/:/g, '')
   const readerId = `qr-reader-${elementId}`
-  const scannerRef = useRef<Html5Qrcode | null>(null)
   const onScanRef = useRef(onScan)
+  const pausedRef = useRef(paused)
   const scannedRef = useRef(false)
+  const generationRef = useRef(0)
   const [cameraError, setCameraError] = useState('')
 
   useEffect(() => {
@@ -26,13 +44,23 @@ export default function QrScanner({ active, onScan }: QrScannerProps) {
   }, [onScan])
 
   useEffect(() => {
+    pausedRef.current = paused
+  }, [paused])
+
+  useEffect(() => {
     if (!active) return
+
+    const generation = ++generationRef.current
+    let cancelled = false
+    const stale = () => cancelled || generation !== generationRef.current
 
     scannedRef.current = false
     setCameraError('')
 
+    const host = document.getElementById(readerId)
+    if (host) host.innerHTML = ''
+
     const scanner = new Html5Qrcode(readerId)
-    scannerRef.current = scanner
 
     const config = {
       fps: 10,
@@ -41,47 +69,51 @@ export default function QrScanner({ active, onScan }: QrScannerProps) {
     }
 
     const onDecode = (text: string) => {
-      if (scannedRef.current) return
+      if (stale() || pausedRef.current || scannedRef.current) return
       scannedRef.current = true
-      scanner.stop().catch(() => {})
-      onScanRef.current(text.trim())
+      void stopScannerSafely(scanner).then(() => {
+        if (!stale()) onScanRef.current(text.trim())
+      })
     }
 
     const startScanner = async () => {
       try {
         const cameras = await Html5Qrcode.getCameras()
+        if (stale() || pausedRef.current) return
         if (cameras.length === 0) {
           setCameraError('No se encontró cámara en este dispositivo.')
           return
         }
         await scanner.start(pickCamera(cameras), config, onDecode, () => {})
       } catch {
+        if (stale() || pausedRef.current) return
         try {
           await scanner.start({ facingMode: 'environment' }, config, onDecode, () => {})
         } catch {
-          setCameraError(
-            'No se pudo usar la cámara. Revisa los permisos del navegador e intenta de nuevo.',
-          )
+          if (!stale()) {
+            setCameraError(
+              'No se pudo usar la cámara. Revisa los permisos del navegador e intenta de nuevo.',
+            )
+          }
+          return
         }
       }
+      if (stale() || pausedRef.current) {
+        await stopScannerSafely(scanner)
+      }
     }
 
-    startScanner()
+    if (paused) {
+      void stopScannerSafely(scanner)
+    } else {
+      void startScanner()
+    }
 
     return () => {
-      const current = scannerRef.current
-      if (!current) return
-      if (current.isScanning) {
-        current.stop().catch(() => {})
-      }
-      try {
-        current.clear()
-      } catch {
-        /* ignore cleanup errors */
-      }
-      scannerRef.current = null
+      cancelled = true
+      void stopScannerSafely(scanner)
     }
-  }, [active, readerId])
+  }, [active, paused, readerId])
 
   if (!active) return null
 

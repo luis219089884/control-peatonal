@@ -1,0 +1,18 @@
+[
+  {"model": "usuarios.rol", "pk": 1, "fields": {"nombre": "admin", "descripcion": "Administrador del sistema", "activo": true}},
+  {"model": "usuarios.rol", "pk": 2, "fields": {"nombre": "guardia", "descripcion": "Guardia de acceso", "activo": true}},
+  {"model": "usuarios.rol", "pk": 3, "fields": {"nombre": "usuario", "descripcion": "Usuario general del sistema", "activo": true}},
+
+  {"model": "usuarios.permiso", "pk": 1,  "fields": {"nombre": "ver_usuarios",        "descripcion": "Ver lista de usuarios",           "modulo": "usuarios"}},
+  {"model": "usuarios.permiso", "pk": 2,  "fields": {"nombre": "crear_usuarios",      "descripcion": "Crear nuevos usuarios",           "modulo": "usuarios"}},
+  {"model": "usuarios.permiso", "pk": 3,  "fields": {"nombre": "editar_usuarios",     "descripcion": "Editar datos de usuarios",        "modulo": "usuarios"}},
+  {"model": "usuarios.permiso", "pk": 4,  "fields": {"nombre": "desactivar_usuarios", "descripcion": "Desactivar usuarios",             "modulo": "usuarios"}},
+  {"model": "usuarios.permiso", "pk": 5,  "fields": {"nombre": "ver_registros",       "descripcion": "Ver registros de ingreso",        "modulo": "accesos"}},
+  {"model": "usuarios.permiso", "pk": 6,  "fields": {"nombre": "validar_qr",          "descripcion": "Validar código QR en ingreso",    "modulo": "accesos"}},
+  {"model": "usuarios.permiso", "pk": 7,  "fields": {"nombre": "generar_qr",          "descripcion": "Generar código QR personal",      "modulo": "accesos"}},
+  {"model": "usuarios.permiso", "pk": 8,  "fields": {"nombre": "registrar_invitado",  "descripcion": "Registrar visitantes externos",   "modulo": "accesos"}},
+  {"model": "usuarios.permiso", "pk": 9,  "fields": {"nombre": "ver_estadisticas",    "descripcion": "Ver estadísticas del sistema",    "modulo": "reportes"}},
+  {"model": "usuarios.permiso", "pk": 10, "fields": {"nombre": "gestionar_sedes",     "descripcion": "Gestionar sedes universitarias",  "modulo": "administracion"}},
+  {"model": "usuarios.permiso", "pk": 11, "fields": {"nombre": "gestionar_facultades","descripcion": "Gestionar facultades",            "modulo": "administracion"}},
+  {"model": "usuarios.permiso", "pk": 12, "fields": {"nombre": "gestionar_carreras",  "descripcion": "Gestionar carreras",              "modulo": "administracion"}}
+]

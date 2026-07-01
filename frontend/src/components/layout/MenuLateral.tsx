@@ -1,9 +1,13 @@
 import { NavLink } from 'react-router-dom'
+import { useQuery } from '@apollo/client'
 import { useAuth } from '../../context/AuthContext'
+import { MI_PERFIL_QUERY } from '../../graphql/queries'
+import AvatarUsuario from '../ui/AvatarUsuario'
+import { seccionesPerfilParaMenu } from '../../utils/perfilMenu'
 
 interface MenuItem { to: string; label: string; icon: string; highlight?: boolean; end?: boolean }
 
-const itemsAdmin: MenuItem[] = [
+const itemsAdminGestion: MenuItem[] = [
   { to: '/admin',                              label: 'Dashboard',          icon: '📊', end: true },
   { to: '/admin/accesos',                      label: 'Accesos',            icon: '📋' },
   { to: '/admin/guardias',                     label: 'Guardias',           icon: '👮' },
@@ -16,16 +20,38 @@ const itemsAdmin: MenuItem[] = [
   { to: '/admin/empresas',                     label: 'Empresas',           icon: '🏭' },
   { to: '/admin/facultades',                   label: 'Facultades',         icon: '🏛️' },
   { to: '/admin/reportes',                     label: 'Informes',           icon: '📈' },
-  { to: '/admin/dtic',                         label: 'Sync DTIC',          icon: '🔄' },
-  { to: '/perfil',                             label: 'Mi Perfil',          icon: '👤' },
 ]
 
-const itemsUsuario: MenuItem[] = [
-  { to: '/perfil',               label: 'Datos Personales',   icon: '📋' },
-  { to: '/generar-qr',           label: 'Generar QR',         icon: '🔑', highlight: true },
-  { to: '/registrar-invitado',   label: 'Registrar Invitado', icon: '👥' },
-  { to: '/cambiar-password',     label: 'Cambiar Contraseña', icon: '🔒' },
+const itemsCuentaBase: MenuItem[] = [
+  { to: '/perfil',             label: 'Datos Personales',   icon: '📋', end: true },
+  { to: '/cambiar-password',   label: 'Cambiar Contraseña', icon: '🔒' },
 ]
+
+const itemsUsuarioOperativos: MenuItem[] = [
+  { to: '/generar-qr',         label: 'Generar QR',         icon: '🔑', highlight: true },
+  { to: '/registrar-invitado', label: 'Registrar Invitado', icon: '👥' },
+]
+
+function buildMenuItems(user: ReturnType<typeof useAuth>['user'], isAdmin: boolean): MenuItem[] {
+  const perfilSecciones = seccionesPerfilParaMenu(user).map(({ to, label, icon }) => ({ to, label, icon }))
+
+  if (isAdmin) {
+    return [...itemsAdminGestion, ...itemsCuentaBase, ...perfilSecciones]
+  }
+
+  const operativos = itemsUsuarioOperativos.filter(item =>
+    item.to !== '/registrar-invitado'
+    || !!user?.puede_registrar_invitados
+    || user?.tipo_usuario === 'docente'
+  )
+
+  return [
+    itemsCuentaBase[0],
+    ...operativos,
+    itemsCuentaBase[1],
+    ...perfilSecciones,
+  ]
+}
 
 interface MenuLateralProps {
   onNavigate?: () => void
@@ -33,24 +59,21 @@ interface MenuLateralProps {
 
 export default function MenuLateral({ onNavigate }: MenuLateralProps) {
   const { user, isAdmin } = useAuth()
-
-  const items = isAdmin
-    ? itemsAdmin
-    : itemsUsuario.filter(item =>
-        item.to !== '/registrar-invitado'
-        || !!user?.puede_registrar_invitados
-        || user?.tipo_usuario === 'docente'
-      )
+  const { data: perfilData } = useQuery(MI_PERFIL_QUERY, { skip: !user })
+  const fotoUrl = perfilData?.miPerfil?.fotoUrl
+  const items = buildMenuItems(user, isAdmin)
 
   return (
     <aside className="w-[220px] min-h-full bg-[#0f2347] flex flex-col py-5 flex-shrink-0">
-      {/* Avatar usuario */}
       <div className="px-4 mb-5">
         <div className="bg-white/10 rounded-xl p-3 text-center">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center
-            text-white font-bold text-sm mx-auto mb-2">
-            {(user?.nombres?.[0] || '') + (user?.apellidos?.[0] || '')}
-          </div>
+          <AvatarUsuario
+            nombres={user?.nombres}
+            apellidos={user?.apellidos}
+            fotoUrl={fotoUrl}
+            size="sm"
+            className="mx-auto mb-2 bg-white/20"
+          />
           <p className="text-white text-xs font-semibold leading-tight truncate">
             {user?.nombres?.split(' ')[0]} {user?.apellidos?.split(' ')[0]}
           </p>

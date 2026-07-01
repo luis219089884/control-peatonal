@@ -201,6 +201,7 @@ class RegistroIngreso(models.Model):
         ("qr",        "Código QR"),
         ("manual",    "Manual (registro universitario)"),
         ("logistico", "Logístico / Entrega rápida"),
+        ("rostro",    "Reconocimiento facial"),
     )
 
     id_registro = models.AutoField(primary_key=True)

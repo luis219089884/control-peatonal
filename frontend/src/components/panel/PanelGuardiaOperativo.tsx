@@ -11,6 +11,7 @@ import Badge from '../ui/Badge'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import Seguridad2FA from '../Seguridad2FA'
 import QrScanner from '../QrScanner'
+import PanelRostroAsistido from './PanelRostroAsistido'
 import { useAuth } from '../../context/AuthContext'
 import type { ValidarQRResponse } from '../../types'
 
@@ -27,6 +28,7 @@ const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sába
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 type Estado = 'listo' | 'resultado'
+type ModoAcceso = 'qr' | 'rostro'
 
 export interface RegistroHoy {
   idRegistro: number
@@ -464,10 +466,13 @@ export default function PanelGuardiaOperativo({
   const [filtroTipo, setFiltroTipo] = useState('todos')
   const [filtroAcceso, setFiltroAcceso] = useState('todos')
   const [filtroMov, setFiltroMov] = useState('todos')
+  const [modoAcceso, setModoAcceso] = useState<ModoAcceso>('qr')
   const [registrosLocal, setRegistrosLocal] = useState<RegistroHoy[]>([])
 
   const { logout } = useAuth()
   const [validarQR, { loading }] = useMutation(VALIDAR_QR_MUTATION)
+  const procesandoScanRef = useRef(false)
+  const ultimoTokenRef = useRef('')
 
   const registros = useMemo(() => {
     const server: RegistroHoy[] = panel?.registrosHoy ?? []
@@ -486,9 +491,14 @@ export default function PanelGuardiaOperativo({
   }, [estado])
 
   const handleValidarToken = useCallback(async (tokenHash: string) => {
-    if (!tokenHash.trim() || !panel || !idIngreso || loading) return
+    const token = tokenHash.trim()
+    if (!token || !panel || !idIngreso || loading || procesandoScanRef.current) return
+    if (ultimoTokenRef.current === token) return
+
+    procesandoScanRef.current = true
+    ultimoTokenRef.current = token
     try {
-      const { data } = await validarQR({ variables: { tokenHash: tokenHash.trim(), idIngreso } })
+      const { data } = await validarQR({ variables: { tokenHash: token, idIngreso } })
       const r = data?.validarQr
       setResultado({ ...r, tipoPersona: r?.tipoPersona ?? '', tipoMovimiento: r?.tipoMovimiento ?? '' })
       setEstado('resultado')
@@ -496,6 +506,11 @@ export default function PanelGuardiaOperativo({
     } catch (e: unknown) {
       setResultado({ resultado: 'ERROR', mensaje: (e as Error).message })
       setEstado('resultado')
+    } finally {
+      procesandoScanRef.current = false
+      window.setTimeout(() => {
+        if (ultimoTokenRef.current === token) ultimoTokenRef.current = ''
+      }, 4000)
     }
   }, [panel, validarQR, onRefetch, loading, idIngreso])
 
@@ -571,6 +586,24 @@ export default function PanelGuardiaOperativo({
     </div>
   )
 
+  const handleRostroResult = async (r: ResultadoScan) => {
+    setResultado(r)
+    setEstado('resultado')
+    await onRefetch()
+  }
+
+  const modoBtnClass = (modo: ModoAcceso) => {
+    const active = modoAcceso === modo
+    if (esAdmin) {
+      return active
+        ? 'bg-[#1a3a6b] text-white shadow-sm'
+        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+    }
+    return active
+      ? 'bg-cyan-500/25 text-white border-cyan-400/50'
+      : 'bg-white/8 text-white/60 border-white/15 hover:bg-white/12'
+  }
+
   const scannerBlock = (
     <div className="flex flex-col items-center gap-4 w-full">
       {estado === 'listo' ? (
@@ -582,15 +615,51 @@ export default function PanelGuardiaOperativo({
                 onError={e => { (e.target as HTMLImageElement).src = 'https://www.uagrm.edu.bo/img/logo-88x707-gray.png' }} />
             </div>
           )}
-          <div className={`w-full rounded-2xl overflow-hidden border-2 ${esAdmin ? 'border-[#2a5298]/30 bg-gray-900' : 'border-cyan-400/30 bg-black/30'} shadow-xl`}>
-            {loading ? (
-              <div className="flex items-center justify-center py-16"><LoadingSpinner text="Validando..." /></div>
+          <div className={`grid grid-cols-2 gap-2 w-full p-1 rounded-xl border ${esAdmin ? 'border-gray-200 bg-gray-50' : 'border-white/15 bg-black/20'}`}>
+            <button
+              type="button"
+              onClick={() => setModoAcceso('qr')}
+              className={`py-2.5 rounded-lg text-sm font-semibold border transition-colors ${modoBtnClass('qr')}`}
+            >
+              📱 Código QR
+            </button>
+            <button
+              type="button"
+              onClick={() => setModoAcceso('rostro')}
+              className={`py-2.5 rounded-lg text-sm font-semibold border transition-colors ${modoBtnClass('rostro')}`}
+            >
+              🙂 Rostro
+            </button>
+          </div>
+          <div className={`relative w-full rounded-2xl overflow-hidden border-2 ${esAdmin ? 'border-[#2a5298]/30 bg-gray-900' : 'border-cyan-400/30 bg-black/30'} shadow-xl`}>
+            {modoAcceso === 'qr' ? (
+              <>
+                <QrScanner
+                  active={!!panel}
+                  paused={loading}
+                  onScan={handleValidarToken}
+                />
+                {loading && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 backdrop-blur-[1px]">
+                    <LoadingSpinner text="Validando..." />
+                  </div>
+                )}
+              </>
             ) : (
-              <QrScanner active={!loading && !!panel} onScan={handleValidarToken} />
+              <div className="p-3 md:p-4">
+                <PanelRostroAsistido
+                  idIngreso={idIngreso}
+                  esAdmin={esAdmin}
+                  disabled={!panel || loading}
+                  onResult={handleRostroResult}
+                />
+              </div>
             )}
           </div>
           <p className={`text-xs tracking-widest uppercase text-center ${esAdmin ? 'text-gray-500' : 'text-white/30'}`}>
-            Acerque el código QR a la cámara
+            {modoAcceso === 'qr'
+              ? 'Acerque el código QR a la cámara'
+              : 'Capture el rostro y confirme la identidad sugerida'}
           </p>
           <div className="grid grid-cols-2 gap-3 w-full">
             <button type="button" onClick={() => setShowManual(true)}

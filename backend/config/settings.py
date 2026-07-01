@@ -95,3 +95,5 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 BREVO_API_KEY = config("BREVO_API_KEY", default="")
 BREVO_SENDER_EMAIL = "luisdavidlopezarancibia@gmail.com"
 BREVO_SENDER_NAME = "UAGRM Control Peatonal"
+
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
