@@ -32,10 +32,16 @@ from usuarios.utils import hash_password
 PASSWORD_DEMO = "Prueba2026!"
 PASSWORD_ADMIN = "Admin123!"
 
-DEFAULT_CREDENCIALES = (
-    Path(__file__).resolve().parents[5]
-    / "CREDENCIALES_PRUEBA_LOCAL_UAGRM.txt"
-)
+
+def _default_credenciales_path() -> Path:
+    """Ruta del .txt: repo local o /tmp en Railway (solo backend en /app)."""
+    here = Path(__file__).resolve()
+    for depth in (5, 4, 3):
+        try:
+            return here.parents[depth] / "CREDENCIALES_PRUEBA_LOCAL_UAGRM.txt"
+        except IndexError:
+            continue
+    return Path("/tmp/CREDENCIALES_PRUEBA_LOCAL_UAGRM.txt")
 
 
 @dataclass
@@ -184,7 +190,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--credenciales",
-            default=str(DEFAULT_CREDENCIALES),
+            default=str(_default_credenciales_path()),
             help="Ruta del archivo .txt con credenciales.",
         )
         parser.add_argument(
